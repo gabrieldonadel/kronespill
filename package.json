@@ -5,8 +5,11 @@
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
     "expo": "~57.0.23",
+    "expo-asset": "~57.0.17",
+    "expo-audio": "~57.0.5",
     "expo-haptics": "~57.0.3",
     "expo-status-bar": "~57.0.1",
+    "planck": "^1.5.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",

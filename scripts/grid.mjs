@@ -1,47 +1,50 @@
-// Board balance search. Run: node scripts/grid.mjs [playsPerConfig]
-import {
-  step, launchVelocity, buildSegments, buildPegs, TUNE,
-  LAUNCH_X, LAUNCH_Y, SLOT_VALUES, RESULT_FLYING, RESULT_LOST,
-} from '../src/engine.ts';
+// Board balance search. Run: node --import ./scripts/register.mjs scripts/grid.mjs [plays]
+import { SLOT_VALUES, TUNE } from '../src/engine.ts';
+import { createBoard, launchBoard, stepBoard, RESULT_FLYING, RESULT_LOST } from '../src/physics.ts';
 
 const N = Number(process.argv[2] ?? 600);
 const DT = 1 / 60;
-const pegs = buildPegs();
-
-function trial(tune, segs, power) {
-  const { vx, vy } = launchVelocity(power, tune);
-  const b = { x: LAUNCH_X, y: LAUNCH_Y, vx, vy, spin: 0, t: 0, stall: 0 };
-  for (let i = 0; i < 1400; i++) {
-    const r = step(b, DT, segs, pegs, tune);
-    if (r !== RESULT_FLYING) return r;
-  }
-  return RESULT_LOST;
-}
 
 export function evaluate(over, n = N) {
   const tune = { ...TUNE, ...over };
-  const segs = buildSegments(tune);
+  const board = createBoard(tune);
   const hits = new Array(9).fill(0);
-  let paid = 0, won = 0;
+  let paid = 0, won = 0, time = 0, timeouts = 0;
   for (let i = 0; i < n; i++) {
-    const r = trial(tune, segs, Math.random());
+    launchBoard(board, Math.random());
+    let r = RESULT_LOST;
+    for (let s = 0; s < 2400; s++) {
+      r = stepBoard(board, DT);
+      if (r !== RESULT_FLYING) break;
+    }
+    time += board.t;
+    if (board.t > 13) timeouts++;
     if (r > 0) { hits[r - 1]++; won++; paid += SLOT_VALUES[r - 1]; }
   }
-  return { tune, hit: won / n, payback: paid / n, jackpot: hits[4] / n, hits, n };
+  const left = hits.slice(0, 4).reduce((a, b) => a + b, 0);
+  const right = hits.slice(5).reduce((a, b) => a + b, 0);
+  return {
+    tune, hits, n,
+    hit: won / n, payback: paid / n, jackpot: hits[4] / n,
+    flight: time / n, timeouts: timeouts / n,
+    // 0 means all action on the left, 1 all on the right, 0.5 even.
+    balance: left + right > 0 ? right / (left + right) : 0.5,
+  };
 }
 
 function line(keys, r) {
-  const head = keys.map((k) => String(r.tune[k]).padStart(k.length)).join(' ');
-  return `${head}  ${(100 * r.hit).toFixed(1).padStart(5)}  ${r.payback.toFixed(3).padStart(7)}  ${(100 * r.jackpot).toFixed(2).padStart(5)}    ${r.hits.filter((h) => h / r.n >= 0.004).length}   [${r.hits.map((h) => ((100 * h) / r.n).toFixed(1)).join(' ')}]`;
+  const head = keys.map((k) => String(r.tune[k]).padStart(Math.max(4, k.length))).join(' ');
+  const covered = r.hits.filter((h) => h / r.n >= 0.004).length;
+  return `${head}  ${(100 * r.hit).toFixed(1).padStart(5)}  ${r.payback.toFixed(3).padStart(7)}  ${(100 * r.jackpot).toFixed(2).padStart(5)}  ${r.flight.toFixed(2)}s  ${r.balance.toFixed(2)}   ${covered}   [${r.hits.map((h) => ((100 * h) / r.n).toFixed(1)).join(' ')}]`;
 }
 
 if (process.argv[1].endsWith('grid.mjs')) {
-  const keys = ['railDrop', 'vyCapture'];
+  const keys = ['enterRate', 'railDrop'];
   const rows = [];
-  for (const vyCapture of [85, 87, 89])
-    for (const railDrop of [1.5, 2, 2.5])
-      rows.push(evaluate({ railDrop, vyCapture }));
-  rows.sort((a, b) => Math.abs(a.payback - 0.8) - Math.abs(b.payback - 0.8));
-  console.log(keys.join(' ') + '   hit%   payback  jack%  pockets  distribution');
+  for (const enterRate of [0.72, 0.8, 0.9])
+    for (const railDrop of [2.5, 3])
+      rows.push(evaluate({ enterRate, railDrop }));
+  rows.sort((a, b) => Math.abs(a.payback - 0.85) - Math.abs(b.payback - 0.85));
+  console.log(keys.join(' ') + '   hit%   payback  jack%  flight   bal  pockets  distribution');
   for (const r of rows) console.log(line(keys, r));
 }

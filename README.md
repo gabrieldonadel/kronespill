@@ -23,32 +23,55 @@ the chevron, the eighteen coin tubes, the striped launch chute and the
 A coin that drops into a crown hole pays what the shield says, out of the tube
 stock behind it. A coin that misses rolls off the rail and the machine keeps it.
 
-## The board
+## How it is put together
 
-`src/engine.ts` holds the geometry and the physics. Everything is in board
-units, where the glass is 100 wide and a 1-krone coin is 4.4 across, which makes
-one unit about 4.8 mm on the real cabinet.
+| File | Job |
+| --- | --- |
+| `src/engine.ts` | Board constants and the `Tune` knobs. No physics. |
+| `src/board.ts` | The single description of the collision geometry. |
+| `src/physics.ts` | The solver: [planck.js](https://github.com/piqnt/planck.js), a TypeScript rewrite of Box2D. |
+| `src/sound.ts` | Sound, cut from a video of the real machine. |
+| `src/Game.tsx` | The cabinet, the controls and the round. |
 
-The same `step()` runs in a Reanimated worklet on the phone and in plain Node in
-`scripts/`, so the machine is balanced and checked away from a device.
+Geometry is in board units, where the glass is 100 wide and a 1-krone coin is
+4.4 across, which makes one unit 4.77 mm on the real cabinet. `src/board.ts` is
+the only place the geometry is written down: planck builds its fixtures from it,
+the renderer draws the rails from it, and the checker validates it. That is what
+keeps the picture and the physics from drifting apart.
+
+The coin is a disc with real angular dynamics, so it rolls along the rail and
+spins off the pins. Contact impulses come out of the solver and drive both the
+sound and the haptics, so a glancing touch is quiet and a solid pin strike is
+not.
+
+**Gravity is derived, not dialled in.** The cabinet hangs on the wall leaning
+back, so the coin runs on an inclined plane and only feels g·sin(theta) along the
+board. At 18 degrees that is 635 board units/s², which sets the pace of the
+whole game.
+
+## Balancing it
+
+`src/physics.ts` runs unchanged in Hermes and in Node, so the machine is
+balanced and checked away from a device.
 
 ```
-node scripts/check-board.mjs   # geometry faults
-node scripts/sim.mjs 15000     # payback, hit rate, flight time
-node scripts/grid.mjs 1500     # sweep the tuning knobs
-node scripts/resonance.mjs 230 330 400 30   # hunt exploitable flick strengths
+node --import ./scripts/register.mjs scripts/check-board.mjs   # geometry faults
+node --import ./scripts/register.mjs scripts/sim.mjs 4000      # payback, hit rate, flight
+node --import ./scripts/register.mjs scripts/grid.mjs 900      # sweep the knobs
+node --import ./scripts/register.mjs scripts/resonance.mjs 230 330 250 24
 ```
 
-Current board, over 15 000 simulated flicks:
+Current board, over 4 000 simulated flicks:
 
 | | |
 | --- | --- |
-| hit rate | 26.3% |
-| payback | 0.863 kr per krone played |
-| house edge | 13.7% |
-| flight | 0.97 s mean, 3.8 s worst |
+| hit rate | 31.9% |
+| payback | 0.879 kr per krone played |
+| house edge | 12.1% |
+| flight | 2.43 s mean, 4.76 s worst |
 | jammed coins | none |
-| jackpot | 2.5% of flicks, a third of all payout |
+| jackpot | 1.2% of flicks |
+| left/right balance | 0.53, and all nine holes between 2.7% and 5.4% |
 
 No flick strength beats the machine: payback stays between 0.6 and 1.1 across
 the whole power range. That needs the flick jitter in `TUNE` — without it the
@@ -67,15 +90,33 @@ until a coin is stuck behind glass:
 
 ### Where the model departs from the machine
 
-- A hole only takes a coin that is dropping and not skating sideways
-  (`vyCapture`, `vxCapture`). On the real cabinet the coin rolls on its edge and
-  rides straight over a hole unless it is nearly stopped above it; in two
-  dimensions that has to be stated explicitly, and it is what keeps the machine
-  ahead of the player.
+- **The rail under the shields is unbroken.** The winning holes are slots in the
+  backplate, behind the plane the coin rolls in, so dropping into one needs the
+  coin to line up in a depth axis a flat board does not have. `TUNE.enterRate`
+  is the rate at which that alignment happens per second spent over a hole: a
+  coin rolling quickly gets few chances, a coin that stops over a hole
+  eventually falls in. It is the machine's main economic knob.
+
+  This replaced an earlier attempt to gate entry on the coin's velocity. Once
+  the coin had real angular dynamics it simply rolled into holes, because in two
+  dimensions a hole in the floor is a hole in the floor — the missing dimension
+  had to be modelled, not approximated.
 - The chevron rail and the tube bank are drawn, not simulated. By the time a
   coin reaches them the round is already decided.
 - A coin balanced on a pin gets nudged, the way a real cabinet is never quite
   still. After too long it counts as lost rather than hanging the game.
+
+## Sound
+
+Every sample in `assets/sfx` is the real machine, cut from a video of it: the
+pin strikes, the coin landing in the tube bank, the payout cascade, the flick.
+They were picked by measurement rather than by ear — bright metallic transients
+at 4–6 kHz with sub-millisecond attacks, and a payout cascade with no voice in
+it. 36 KB in total.
+
+Impact loudness follows the contact impulse planck reports. The thresholds are
+set so the machine gives one to three audible ticks per flick, which is what the
+video's audio does.
 
 ## Running it
 

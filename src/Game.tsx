@@ -13,7 +13,6 @@ import Animated, {
   Easing,
   runOnJS,
   useAnimatedStyle,
-  useFrameCallback,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -29,18 +28,29 @@ import {
   GLASS_H,
   GLASS_W,
   LAUNCH_X,
-  LAUNCH_Y,
-  PEGS,
   RAIL_X_L,
-  RESULT_FLYING,
-  SEGS,
   SLOT_VALUES,
   SLOT_XS,
   TUNE,
-  launchVelocity,
-  railY,
-  step,
 } from './engine';
+import {
+  coinState,
+  createBoard,
+  launchBoard,
+  stepBoard,
+  takeImpact,
+  RESULT_FLYING,
+  type Board,
+} from './physics';
+import {
+  initSound,
+  playImpact,
+  playInsert,
+  playLaunch,
+  playLost,
+  playPayout,
+  setSoundEnabled,
+} from './sound';
 import { C } from './theme';
 import { Playfield, TUBE_PITCH, tubeX } from './components/Playfield';
 import { TubeBank } from './components/TubeBank';
@@ -121,16 +131,26 @@ export function Game() {
   const [banner, setBanner] = useState<string | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Coin in play. Physics runs on these, so they live on the UI thread.
+  // The solver owns the coin's state; these carry it to the UI thread so the
+  // sprite keeps moving smoothly across React renders.
   const cx = useSharedValue(LAUNCH_X);
   const cy = useSharedValue(CHUTE_BOTTOM - 4);
-  const cvx = useSharedValue(0);
-  const cvy = useSharedValue(0);
   const spin = useSharedValue(0);
-  const ct = useSharedValue(0);
-  const cstall = useSharedValue(0);
   const coinShown = useSharedValue(0);
-  const flying = useSharedValue(0);
+
+  const boardRef = useRef<Board | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const lastAtRef = useRef(0);
+  const [soundOn, setSoundOn] = useState(true);
+
+  if (boardRef.current === null) boardRef.current = createBoard(TUNE);
+
+  useEffect(() => {
+    initSound();
+    return () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
 
   // Flick strength, 0 to 1, driven by the lever.
   const power = useSharedValue(0);
@@ -190,12 +210,12 @@ export function Game() {
           easing: Easing.out(Easing.quad),
         });
         say(value === 10 ? 'JACKPOT · 10 KRONER' : `${value} KRONER`);
+        playPayout();
         Haptics.notificationAsync(
-          value === 10
-            ? Haptics.NotificationFeedbackType.Success
-            : Haptics.NotificationFeedbackType.Success,
+          Haptics.NotificationFeedbackType.Success,
         ).catch(() => {});
       } else {
+        playLost();
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }
 
@@ -219,32 +239,32 @@ export function Game() {
     [settle],
   );
 
-  useFrameCallback((info) => {
-    'worklet';
-    if (flying.value !== 1) return;
-    const dt = Math.min((info.timeSincePreviousFrame ?? 16.7) / 1000, 0.04);
-    const b = {
-      x: cx.value,
-      y: cy.value,
-      vx: cvx.value,
-      vy: cvy.value,
-      spin: spin.value,
-      t: ct.value,
-      stall: cstall.value,
-    };
-    const result = step(b, dt, SEGS, PEGS, TUNE);
-    cx.value = b.x;
-    cy.value = b.y;
-    cvx.value = b.vx;
-    cvy.value = b.vy;
-    spin.value = b.spin;
-    ct.value = b.t;
-    cstall.value = b.stall;
-    if (result !== RESULT_FLYING) {
-      flying.value = 0;
-      runOnJS(onResolved)(result, b.x);
-    }
-  }, true);
+  /** One frame of solver, then the result is carried to the UI thread. */
+  const tick = useCallback(
+    (now: number) => {
+      const board = boardRef.current;
+      if (!board) return;
+      const prev = lastAtRef.current || now;
+      lastAtRef.current = now;
+      const result = stepBoard(board, (now - prev) / 1000 || 1 / 60);
+
+      const c = coinState(board);
+      cx.value = c.x;
+      cy.value = c.y;
+      spin.value = c.angle;
+
+      const impact = takeImpact(board);
+      if (impact.strength > 0) playImpact(impact.strength, impact.on);
+
+      if (result !== RESULT_FLYING) {
+        frameRef.current = null;
+        onResolved(result, c.x);
+        return;
+      }
+      frameRef.current = requestAnimationFrame(tick);
+    },
+    [cx, cy, spin, onResolved],
+  );
 
   const insert = useCallback(() => {
     if (phase !== 'idle' || bank <= 0) return;
@@ -254,32 +274,24 @@ export function Game() {
     cy.value = CHUTE_BOTTOM - 4;
     spin.value = 0;
     coinShown.value = 1;
+    playInsert();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => {});
   }, [bank, phase, cx, cy, spin, coinShown]);
 
   const flick = useCallback(
     (p: number) => {
+      const board = boardRef.current;
+      if (!board) return;
       setPlayed((n) => n + 1);
       setPhase('flying');
+      playLaunch();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      // Up the chute first, then the board takes over.
-      cx.value = LAUNCH_X;
-      cy.value = withTiming(
-        LAUNCH_Y,
-        { duration: 130, easing: Easing.in(Easing.quad) },
-        (done) => {
-          'worklet';
-          if (!done) return;
-          const v = launchVelocity(p, TUNE);
-          cvx.value = v.vx;
-          cvy.value = v.vy;
-          ct.value = 0;
-          cstall.value = 0;
-          flying.value = 1;
-        },
-      );
+      launchBoard(board, p);
+      lastAtRef.current = 0;
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = requestAnimationFrame(tick);
     },
-    [cx, cy, cvx, cvy, ct, cstall, flying],
+    [tick],
   );
 
   const sweepTray = useCallback(() => {
@@ -411,7 +423,7 @@ export function Game() {
                 height: coinPx * 0.8,
               }}
             >
-              <Coin size={coinPx * 0.8} detail={false} />
+              <Coin size={coinPx * 0.8} detail={false} face={i % 3 === 0 ? 'king' : 'crown'} />
             </View>
           ))}
           {tray > 0 && (
@@ -426,7 +438,7 @@ export function Game() {
           <Animated.View
             style={[{ position: 'absolute', width: coinPx, height: coinPx }, coinStyle]}
           >
-            <Coin size={coinPx} />
+            <Coin size={coinPx} face="crown" />
           </Animated.View>
           {Array.from({ length: payout.n }, (_, i) => (
             <PayoutCoin
@@ -484,6 +496,18 @@ export function Game() {
         ) : (
           <Text style={styles.stat}>SKÅL {tray} kr</Text>
         )}
+        <Pressable
+          onPress={() => {
+            const next = !soundOn;
+            setSoundOn(next);
+            setSoundEnabled(next);
+          }}
+          hitSlop={8}
+        >
+          <Text style={[styles.stat, soundOn && styles.refill]}>
+            LYD {soundOn ? 'PÅ' : 'AV'}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

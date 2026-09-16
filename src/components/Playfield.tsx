@@ -10,6 +10,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
+import { boardGeometry } from '../board';
 import {
   ARCH_CX,
   ARCH_RX,
@@ -27,7 +28,6 @@ import {
   COL_TOP,
   GLASS_H,
   GLASS_W,
-  PEGS,
   POCKET_DEPTH,
   RAIL_X_L,
   RAIL_X_R,
@@ -56,25 +56,13 @@ export const tubeTop = (i: number) =>
 const ry = (x: number) => railY(x, TUNE.railDrop);
 const halfOf = (k: number) => (k === 4 ? TUNE.jackpotHalf : TUNE.slotHalf);
 
-/** Rail under the shields, broken by a hole at each crown. */
-function railSegments() {
-  const out: { x1: number; y1: number; x2: number; y2: number }[] = [];
-  let cursor = RAIL_X_L;
-  for (let k = 0; k < SLOT_XS.length; k++) {
-    const left = SLOT_XS[k] - halfOf(k);
-    out.push({ x1: cursor, y1: ry(cursor), x2: left, y2: ry(left) });
-    cursor = SLOT_XS[k] + halfOf(k);
-  }
-  out.push({ x1: cursor, y1: ry(cursor), x2: RAIL_X_R, y2: ry(RAIL_X_R) });
-  return out;
-}
-
 /**
  * Everything on the board that never moves: airbrushed backplate, arch, pins,
  * bumpers, crown shields, the pocket rail, the chute and the tube channels.
  */
 export const Playfield = React.memo(function Playfield({ scale }: { scale: number }) {
-  const rails = railSegments();
+  const { edges, pegs } = boardGeometry();
+  const rails = edges.filter((e) => e.surface === 'rail');
   return (
     <Svg
       width={GLASS_W * scale}
@@ -136,11 +124,9 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
       />
 
       {/* Pins and bumpers. */}
-      {Array.from({ length: PEGS.length / 4 }, (_, i) => {
-        const x = PEGS[i * 4];
-        const y = PEGS[i * 4 + 1];
-        const r = PEGS[i * 4 + 2];
-        const isBumper = r > 1.5;
+      {pegs.map((peg, i) => {
+        const { x, y, r } = peg;
+        const isBumper = peg.surface === 'bumper';
         return (
           <G key={`peg${i}`}>
             <Circle cx={x} cy={y + 0.35} r={r} fill={C.ink} opacity={0.4} />

@@ -20,10 +20,11 @@ export const C = {
   aluDark: '#7C8085',
   aluShadow: '#5C6065',
 
-  coin: '#C6CACE',
-  coinLight: '#EAECEE',
-  coinMid: '#9DA2A7',
-  coinDark: '#72777C',
+  // Cupronickel: warmer and duller than steel, and worn.
+  coin: '#BDC0C0',
+  coinLight: '#E2E3E0',
+  coinMid: '#989C9C',
+  coinDark: '#66696B',
 
   plate: '#141312',
   plateText: '#F2B21C',
