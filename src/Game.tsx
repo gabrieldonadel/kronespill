@@ -24,7 +24,7 @@ import {
   COL_BOTTOM,
   COL_COUNT,
   COL_MAX,
-  RESULT_CENTRE,
+  RESULT_OVERFLOW,
   TUBE_PITCH,
   resultColumn,
   stackTopY,
@@ -207,10 +207,10 @@ export function Game() {
   const settle = useCallback(
     (result: number, x: number) => {
       const holeWin = result > 0;
-      const centreWin = result === RESULT_CENTRE;
-      const winning = holeWin || centreWin;
-      const value = holeWin ? SLOT_VALUES[result - 1] : centreWin ? 10 : 0;
-      const landedTube = winning ? -1 : resultColumn(result);
+      const overflow = result === RESULT_OVERFLOW;
+      const winning = holeWin;
+      const value = holeWin ? SLOT_VALUES[result - 1] : 0;
+      const landedTube = holeWin || overflow ? -1 : resultColumn(result);
       const dropTube = holeWin ? tubeFor(SLOT_XS[result - 1]) : Math.max(0, landedTube);
 
       if (AUTOPLAY) {
@@ -218,8 +218,8 @@ export function Game() {
           `[autoplay] ${
             holeWin
               ? `WIN ${value} kr hole ${result}`
-              : centreWin
-                ? 'WIN 10 kr down the middle'
+              : overflow
+                ? 'no room: through to the cash box'
                 : `kept by tube ${landedTube}`
           }`,
         );
@@ -249,13 +249,7 @@ export function Game() {
             ),
           );
         }
-        say(
-          centreWin
-            ? 'ALLE RØR FULLE · 10 KRONER'
-            : value === 10
-              ? 'JACKPOT · 10 KRONER'
-              : `${value} KRONER`,
-        );
+        say(value === 10 ? 'JACKPOT · 10 KRONER' : `${value} KRONER`);
         playPayout();
         Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
@@ -272,15 +266,20 @@ export function Game() {
 
       // Walk the coin to where it actually ended up: into the winning hole's
       // tube, or onto the top of the stack it joined.
+      // Winning coins and overflow both disappear into the machine; a kept one
+      // comes to rest on top of the stack it joined.
       const restTube = winning ? dropTube : landedTube;
       const standing = tubes[Math.max(0, restTube)] ?? 0;
-      const restY = winning ? COL_BOTTOM - 6 : stackTopY(standing + 1) + COIN_R;
-      cx.value = withTiming(tubeX(Math.max(0, restTube)), { duration: 240 });
+      const restY =
+        winning || overflow ? COL_BOTTOM - 6 : stackTopY(standing + 1) + COIN_R;
+      cx.value = withTiming(overflow ? 50 : tubeX(Math.max(0, restTube)), {
+        duration: 240,
+      });
       cy.value = withTiming(restY, { duration: 260 }, (done) => {
         'worklet';
         if (done) {
           coinShown.value = 0;
-          if (!winning) runOnJS(landInTube)(restTube);
+          if (!winning && !overflow) runOnJS(landInTube)(restTube);
           runOnJS(setPhase)('idle');
         }
       });

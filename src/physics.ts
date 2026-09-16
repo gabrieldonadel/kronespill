@@ -25,7 +25,7 @@ import {
   COL_TOP,
   COL_MAX,
   RAIL_X_L,
-  RESULT_CENTRE,
+  RESULT_OVERFLOW,
   RESULT_FLYING,
   SETTLE_SPEED,
   TUBE_PITCH,
@@ -58,8 +58,10 @@ const MATERIAL: Record<Surface, { friction: number; restitution: number }> = {
   wall: { friction: 0.25, restitution: 0.3 },
   rail: { friction: 0.35, restitution: 0.45 },
   chute: { friction: 0.2, restitution: 0.2 },
-  // Coin on coin: the stack tops are what a missed coin runs along.
-  stack: { friction: 0.28, restitution: 0.22 },
+  // Coin on coin: the stack tops are what a missed coin runs along. Milled
+  // edges bite, so a coin does not run far before it settles — which is why
+  // the outer tubes, the ones a coin reaches first, stand highest.
+  stack: { friction: 0.62, restitution: 0.12 },
   // The launch channel and its turn: polished metal, so the coin keeps speed.
   guide: { friction: 0.08, restitution: 0.25 },
 };
@@ -235,7 +237,7 @@ function settleAnywhere(board: Board, x: number): number {
       }
     }
   }
-  return RESULT_CENTRE;
+  return RESULT_OVERFLOW;
 }
 
 /** Fixed solver tick. Small enough that a 33 m/s coin moves under 20 cm. */
@@ -292,13 +294,10 @@ export function stepBoard(board: Board, dt: number): number {
       }
     }
 
-    // The payout chute takes the coin only when every tube is full and there is
-    // nowhere else for it to go. Otherwise it drops into a neighbouring tube,
-    // the way it would if the stack beside it were standing lower.
-    if (x > CHUTE_X0 && x < CHUTE_X1 && y > COL_TOP + 6) {
-      const full = board.columns.every((n) => n >= COL_MAX);
-      return full ? RESULT_CENTRE : settleAnywhere(board, x);
-    }
+    // In the chute: the stacks had no room, so the coin runs through to the
+    // cash box. The mouth is walled off level with the tube tops, so the only
+    // way in is across stacks standing full.
+    if (x > CHUTE_X0 && x < CHUTE_X1 && y > COL_TOP + 6) return RESULT_OVERFLOW;
 
     // Once a coin is down among the tubes it is going to end up in one; give
     // it a moment to settle, then put it where it is.
@@ -334,4 +333,4 @@ export function takeImpact(board: Board): { strength: number; on: Surface | null
   return out;
 }
 
-export { RESULT_CENTRE, RESULT_FLYING };
+export { RESULT_OVERFLOW, RESULT_FLYING };

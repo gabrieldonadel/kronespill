@@ -31,14 +31,18 @@ the stack steps down as they fall into the bowl.
 
 **A coin is never simply lost, and there is no ramp under the holes.** One that
 misses runs off the end of the hole rail and lands **on top of the coin stacks**
-— the stacks themselves are the floor. It rolls across them, and because they
-stand highest at the outside it runs inward and settles into a stack with room,
-becoming part of it. If every tube is full the surface is level all the way to
-the middle and the coin runs on into the payout chute, which pays 10. So a round
-always ends somewhere you can see: a payout, or a coin added to a stack.
+— the stacks themselves are the floor. It rolls across them, losing speed over
+each crowned stack top, and settles into one, becoming part of it. Each side of
+the field funnels into the bank through a short skirt from the side rail, so
+nothing falls past the outer tubes. If every tube is full the coin runs through
+to the cash box behind them.
 
-The shelf the coin runs on is rebuilt from the stack heights whenever they
-change, so the surface is always the coins that are actually standing there.
+The surface is rebuilt from the stack heights whenever they change, so a coin is
+always rolling on the coins that are actually standing there. It is one unbroken
+wall: stack tops, a riser wherever the neighbouring stack stands higher, the
+chute cheeks, and the skirts. `scripts/no-escape.test.mjs` drops coins across
+the full width of the glass at four stack profiles — empty, full, the photo's V,
+and a ragged one — and fails if any of them leaves the machine.
 
 The coin is the real thing — both faces of a 1983 Olav V krone, photographed and
 masked to the rim. A loaded machine shows a couple of hundred coins at once, so
@@ -91,20 +95,21 @@ node --import ./scripts/register.mjs scripts/check-board.mjs   # geometry faults
 node --import ./scripts/register.mjs scripts/sim.mjs 4000      # payback, hit rate, flight
 node --import ./scripts/register.mjs scripts/grid.mjs 900      # sweep the knobs
 node --import ./scripts/register.mjs scripts/resonance.mjs 230 330 250 24
-node --import ./scripts/register.mjs scripts/payout.test.mjs   # payout accounting
+node --import ./scripts/register.mjs scripts/payout.test.mjs     # payout accounting
+node --import ./scripts/register.mjs scripts/no-escape.test.mjs  # no coin escapes
 ```
 
 Current board, over 4 000 simulated flicks:
 
 | | |
 | --- | --- |
-| hit rate | 30.6% |
-| kept by the tubes | 69.4% |
-| payback | 0.894 kr per krone played |
-| house edge | 10.6% |
-| flight | 2.66 s mean, 5.04 s worst |
+| hit rate | 31.1% |
+| kept by the tubes | 68.9% |
+| payback | 0.869 kr per krone played |
+| house edge | 13.1% |
+| flight | 3.14 s mean, 5.70 s worst |
 | jammed coins | none |
-| down the middle | only with every tube full |
+| escaped coins | none, across 756 probe drops |
 | spread | all nine holes served |
 
 No flick strength beats the machine: payback stays between 0.6 and 1.1 across
@@ -135,8 +140,14 @@ until a coin is stuck behind glass:
   the coin had real angular dynamics it simply rolled into holes, because in two
   dimensions a hole in the floor is a hole in the floor — the missing dimension
   had to be modelled, not approximated.
-- The tube stacks are drawn, not simulated. Once a coin reaches the tube bank
-  its round is decided; it is added to that stack's count.
+- A coin that reaches the bank is going to end up in a tube, so after a second
+  of settling it is placed where it is. Without that, a few coins in every
+  hundred wandered the stack tops for the full flight cap — fourteen seconds.
+- The explainer this board was built from has the middle paying 10 once every
+  tube is full. It cannot: a full machine would then pay 10 on two thirds of all
+  plays, which measured 1.23 kr returned per krone. The 10 the cabinet pays is
+  the starburst hole in the row; the middle chute carries paid coins to the bowl
+  and takes the overflow when the stacks are full.
 - A coin balanced on a pin gets nudged, the way a real cabinet is never quite
   still. After too long it counts as lost rather than hanging the game.
 

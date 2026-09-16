@@ -119,6 +119,18 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
         strokeLinecap="round"
       />
 
+      {/* The rail ends that funnel each side of the field into the tube bank. */}
+      <Path
+        d={edges
+          .filter((e) => e.surface === 'chute' && e.y1 !== e.y2 && e.x1 !== e.x2)
+          .map((e) => `M${e.x1} ${e.y1} L${e.x2} ${e.y2}`)
+          .join(' ')}
+        fill="none"
+        stroke={C.ink}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+
       {/* Launch channel down the right edge, and the turn at its head. The
           black cover over it is visible on the cabinet. */}
       <Path

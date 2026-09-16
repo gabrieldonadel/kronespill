@@ -21,6 +21,8 @@ import {
   RAIL_X_R,
   CHUTE_X0,
   CHUTE_X1,
+  SKIRT_TOP_Y,
+  STACK_CROWN,
   COL_BOTTOM,
   COL_TOP,
   COL_COUNT,
@@ -120,6 +122,15 @@ export function boardEdges(tune: Tune = TUNE): BoardEdge[] {
   // Above the channel head the outer boundary is the guide's own lip.
   add(WALL_R, CHANNEL_TURN_Y, WALL_R, COL_BOTTOM, 'wall');
 
+  // Each side of the field funnels into the bank: a skirt down from the side
+  // rail to the bank's shoulder, then the outer wall of the end tube. Without
+  // them a coin coming down at the edge falls past the tubes altogether.
+  add(WALL_L, SKIRT_TOP_Y, tubeLeft(0), COL_TOP - 0.5, 'chute');
+  add(tubeLeft(0), COL_TOP - 0.5, tubeLeft(0), COL_BOTTOM, 'chute');
+  const bankRight = tubeLeft(COL_COUNT - 1) + TUBE_PITCH;
+  add(WALL_R, SKIRT_TOP_Y, bankRight, COL_TOP - 0.5, 'chute');
+  add(bankRight, COL_TOP - 0.5, bankRight, COL_BOTTOM, 'chute');
+
   // Walls of the payout chute. Its mouth is level with the tops of the tubes,
   // so a coin can only run into it across stacks that are full.
   add(CHUTE_X0, COL_TOP + 4, CHUTE_X0, COL_BOTTOM, 'chute');
@@ -179,20 +190,43 @@ export function boardEdges(tune: Tune = TUNE): BoardEdge[] {
 }
 
 /**
- * The surface a coin runs on in the tube bank: the top of each stack. Rebuilt
- * whenever a stack changes, which is once a round.
+ * The surface a coin runs on in the tube bank.
+ *
+ * This is one unbroken wall: the top of each stack, a riser wherever the stack
+ * beside it stands higher, and a skirt at each end funnelling in from the side
+ * rail. Leave any of those out and a coin slips underneath a shelf or past the
+ * outermost tube and falls out of the machine. Rebuilt whenever a stack
+ * changes, which is once a round.
  */
 export function stackShelves(counts: number[]): BoardEdge[] {
-  return counts.map((n, i) => {
-    const y = stackTopY(Math.min(n, COL_MAX));
-    return {
-      x1: tubeLeft(i),
-      y1: y,
-      x2: tubeLeft(i) + TUBE_PITCH,
-      y2: y,
-      surface: 'stack' as Surface,
-    };
-  });
+  const out: BoardEdge[] = [];
+  const top = (i: number) => stackTopY(Math.min(counts[i] ?? 0, COL_MAX));
+  const push = (x1: number, y1: number, x2: number, y2: number) =>
+    out.push({ x1, y1, x2, y2, surface: 'stack' });
+
+  for (let i = 0; i < COL_COUNT; i++) {
+    const left = tubeLeft(i);
+    const y = top(i);
+    // The top of a stack is the curve of a coin, not a flat shelf. Rolling
+    // over that scallop is what stops a coin running the length of the bank.
+    push(left, y, left + TUBE_PITCH / 2, y - STACK_CROWN);
+    push(left + TUBE_PITCH / 2, y - STACK_CROWN, left + TUBE_PITCH, y);
+
+    // Riser between neighbouring stacks of different heights.
+    const nextI = i + 1;
+    if (nextI < COL_COUNT) {
+      const nextLeft = tubeLeft(nextI);
+      if (nextLeft === left + TUBE_PITCH && top(nextI) !== y) {
+        push(nextLeft, y, nextLeft, top(nextI));
+      }
+    }
+  }
+
+  // Risers against the payout chute, so a coin cannot slip in from the side.
+  push(CHUTE_X0, top(COL_COUNT / 2 - 1), CHUTE_X0, COL_TOP + 4);
+  push(CHUTE_X1, top(COL_COUNT / 2), CHUTE_X1, COL_TOP + 4);
+
+  return out;
 }
 
 export function boardGeometry(tune: Tune = TUNE) {

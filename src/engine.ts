@@ -13,16 +13,22 @@
 /**
  * How a round can end.
  *
- *   > 0            a winning hole, index + 1
- *   RESULT_FLYING  still in play
- *   RESULT_CENTRE  down the middle chute, which pays the jackpot
- *   <= -2          a coin tube, see columnResult / resultColumn
+ *   > 0             a winning hole, index + 1
+ *   RESULT_FLYING   still in play
+ *   RESULT_OVERFLOW down the middle, into the cash box behind the tubes
+ *   <= -2           a coin tube, see columnResult / resultColumn
  *
- * A coin is never simply lost: it either pays out, or it joins one of the
- * stacks, which is where the machine's money comes from.
+ * A coin is never simply lost: it pays out, joins one of the stacks, or goes to
+ * the cash box when the stacks have no room left.
+ *
+ * The explainer this board was built from has the middle paying 10 once every
+ * tube is full. It cannot: a full machine would then pay 10 on two thirds of
+ * all plays, which measured out at 1.23 kr returned per krone. The 10 the
+ * cabinet actually pays is the starburst hole in the middle of the row, and
+ * the middle chute is the run that carries paid coins to the bowl.
  */
 export const RESULT_FLYING = 0;
-export const RESULT_CENTRE = -1;
+export const RESULT_OVERFLOW = -1;
 export const columnResult = (k: number) => -2 - k;
 export const resultColumn = (r: number) => (r <= -2 ? -(r + 2) : -1);
 
@@ -73,7 +79,18 @@ export const CAPTURE_DEPTH = 2.5;
  * which pays the jackpot.
  */
 /** A coin this slow on the stacks has settled. */
-export const SETTLE_SPEED = 16;
+export const SETTLE_SPEED = 24;
+
+/**
+ * The tube bank is narrower than the glass, so each side of the field funnels
+ * into it: a short steep skirt from the side rail down to the head of the
+ * outermost tube. Without them a coin coming down at the edge falls past the
+ * bank entirely. These are the outer ends of the black rail on the cabinet.
+ */
+export const SKIRT_TOP_Y = 50;
+
+/** How far the top coin of a stack crowns above the tube's shoulders. */
+export const STACK_CROWN = 0.55;
 
 /** The rail carrying the pocket row stops here; past it lie the side channels. */
 export const RAIL_X_L = 7.6;
@@ -216,7 +233,7 @@ export const TUNE: Tune = {
   impactHard: 5,
   hardFric: 0.95,
   softFric: 0.999,
-  enterRate: 0.66,
+  enterRate: 0.69,
   jackpotEnterScale: 0.45,
   rollBand: 1.6,
   lean: 0,

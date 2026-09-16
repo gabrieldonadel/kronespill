@@ -1,5 +1,5 @@
 // Monte Carlo over the shipped board. Run: node scripts/sim.mjs [plays]
-import { SLOT_VALUES, MAX_FLIGHT, TUNE, COL_COUNT, COL_MAX, RESULT_CENTRE, resultColumn } from '../src/engine.ts';
+import { SLOT_VALUES, MAX_FLIGHT, TUNE, COL_COUNT, COL_MAX, RESULT_OVERFLOW, resultColumn } from '../src/engine.ts';
 import { createBoard, launchBoard, stepBoard, syncStacks, RESULT_FLYING } from '../src/physics.ts';
 
 const PLAYS = Number(process.argv[2] ?? 20000);
@@ -19,7 +19,7 @@ function play(power) {
     const r = stepBoard(board, DT);
     if (r !== RESULT_FLYING) return { r, t: board.t };
   }
-  return { r: RESULT_CENTRE, t: board.t };
+  return { r: RESULT_OVERFLOW, t: board.t };
 }
 
 const hits = new Array(9).fill(0);
@@ -43,8 +43,8 @@ for (let i = 0; i < PLAYS; i++) {
     const next = [...board.columns];
     next[k] = Math.max(0, next[k] - SLOT_VALUES[r - 1]);
     syncStacks(board, next);
-  } else if (r === RESULT_CENTRE) {
-    centre++; paid += 10; band.hits++; band.paid += 10;
+  } else if (r === RESULT_OVERFLOW) {
+    centre++; kept++;
   } else {
     const k = resultColumn(r);
     cols[k]++; kept++;
@@ -60,7 +60,7 @@ const pct = (n) => ((100 * n) / PLAYS).toFixed(2) + '%';
 console.log(`plays          ${PLAYS}`);
 console.log(`hit rate       ${pct(PLAYS - kept)}`);
 console.log(`kept by tubes  ${pct(kept)}`);
-console.log(`down the middle ${pct(centre)}`);
+console.log(`to the cash box ${pct(centre)}`);
 console.log(`payback        ${(paid / PLAYS).toFixed(3)} kr per 1 kr played`);
 console.log(`house edge     ${(100 * (1 - paid / PLAYS)).toFixed(1)}%`);
 console.log(`flight         ${(time / PLAYS).toFixed(2)} s mean, ${longest.toFixed(2)} s worst`);
