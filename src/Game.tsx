@@ -25,7 +25,10 @@ import {
   COL_COUNT,
   COL_MAX,
   RESULT_CENTRE,
+  TUBE_PITCH,
   resultColumn,
+  stackTopY,
+  tubeX,
   GLASS_H,
   GLASS_W,
   LAUNCH_X,
@@ -40,12 +43,13 @@ import {
   createBoard,
   launchBoard,
   stepBoard,
+  syncStacks,
   takeImpact,
   RESULT_FLYING,
   type Board,
 } from './physics';
 import { keepPlayed, takeOne } from './payout';
-import { STACK_PITCH } from './components/TubeBank';
+
 import {
   initSound,
   playImpact,
@@ -56,7 +60,7 @@ import {
   setSoundEnabled,
 } from './sound';
 import { C } from './theme';
-import { Playfield, TUBE_PITCH, tubeX } from './components/Playfield';
+import { Playfield } from './components/Playfield';
 import { TubeBank } from './components/TubeBank';
 import { SidePlate } from './components/SidePlate';
 import { Coin } from './components/Coin';
@@ -152,10 +156,10 @@ export function Game() {
 
   if (boardRef.current === null) boardRef.current = createBoard(TUNE);
 
-  // The solver needs the stock levels: a full tube cannot take another coin,
-  // and when none can, the coin goes down the middle.
+  // The stack tops are the surface a missed coin runs along, so the solver
+  // needs the shelves rebuilt whenever a stack changes.
   useEffect(() => {
-    if (boardRef.current) boardRef.current.columns = tubes;
+    if (boardRef.current) syncStacks(boardRef.current, tubes);
   }, [tubes]);
 
   useEffect(() => {
@@ -270,9 +274,7 @@ export function Game() {
       // tube, or onto the top of the stack it joined.
       const restTube = winning ? dropTube : landedTube;
       const standing = tubes[Math.max(0, restTube)] ?? 0;
-      const restY = winning
-        ? COL_BOTTOM - 6
-        : COL_BOTTOM - COIN_R - 0.3 - standing * STACK_PITCH;
+      const restY = winning ? COL_BOTTOM - 6 : stackTopY(standing + 1) + COIN_R;
       cx.value = withTiming(tubeX(Math.max(0, restTube)), { duration: 240 });
       cy.value = withTiming(restY, { duration: 260 }, (done) => {
         'worklet';

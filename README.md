@@ -29,12 +29,16 @@ A coin that drops into a crown hole pays what the shield says, **out of the tube
 stock behind that hole**: coins leave the bottom of the tube one at a time and
 the stack steps down as they fall into the bowl.
 
-**A coin is never simply lost.** One that misses every hole runs off the end of
-the hole rail onto the V below, travels inward along it, and drops into the
-outermost tube that still has room — which is why the outer stacks stand highest
-on the real cabinet. If every tube is full there is nowhere left to go, and the
-coin runs on down the middle chute, which pays 10. So a round always ends
-somewhere you can see: a payout, or a coin added to a stack.
+**A coin is never simply lost, and there is no ramp under the holes.** One that
+misses runs off the end of the hole rail and lands **on top of the coin stacks**
+— the stacks themselves are the floor. It rolls across them, and because they
+stand highest at the outside it runs inward and settles into a stack with room,
+becoming part of it. If every tube is full the surface is level all the way to
+the middle and the coin runs on into the payout chute, which pays 10. So a round
+always ends somewhere you can see: a payout, or a coin added to a stack.
+
+The shelf the coin runs on is rebuilt from the stack heights whenever they
+change, so the surface is always the coins that are actually standing there.
 
 The coin is the real thing — both faces of a 1983 Olav V krone, photographed and
 masked to the rim. A loaded machine shows a couple of hundred coins at once, so
@@ -94,13 +98,13 @@ Current board, over 4 000 simulated flicks:
 
 | | |
 | --- | --- |
-| hit rate | 29.7% |
-| kept by the tubes | 70.3% |
-| payback | 0.832 kr per krone played |
-| house edge | 16.8% |
-| flight | 2.79 s mean, 5.73 s worst |
+| hit rate | 30.6% |
+| kept by the tubes | 69.4% |
+| payback | 0.894 kr per krone played |
+| house edge | 10.6% |
+| flight | 2.66 s mean, 5.04 s worst |
 | jammed coins | none |
-| down the middle | 0.04% of flicks, and only with the bank full |
+| down the middle | only with every tube full |
 | spread | all nine holes served |
 
 No flick strength beats the machine: payback stays between 0.6 and 1.1 across

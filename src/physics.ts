@@ -10,7 +10,7 @@
  */
 import { Circle, Edge, Vec2, World, type Body, type Contact } from 'planck';
 
-import { boardGeometry, type Surface } from './board';
+import { boardGeometry, stackShelves, type Surface } from './board';
 import {
   COIN_R,
   G,
@@ -18,19 +18,20 @@ import {
   LAUNCH_Y,
   MAX_FLIGHT,
   POCKET_DEPTH,
-  CENTRE_GAP,
+  CHUTE_X0,
+  CHUTE_X1,
+  COL_BOTTOM,
   COL_COUNT,
+  COL_TOP,
   COL_MAX,
-  RAMP_APEX_Y,
-  RAMP_BAND,
-  RAMP_OUT_Y,
   RAIL_X_L,
-  RAIL_X_R,
-  RAMP_X_L,
-  RAMP_X_R,
   RESULT_CENTRE,
   RESULT_FLYING,
+  SETTLE_SPEED,
+  TUBE_PITCH,
   columnResult,
+  stackTopY,
+  tubeLeft,
   SLOT_XS,
   STALL_NUDGE,
   STALL_SPEED,
@@ -56,8 +57,9 @@ const MATERIAL: Record<Surface, { friction: number; restitution: number }> = {
   arch: { friction: 0.2, restitution: 0.2 },
   wall: { friction: 0.25, restitution: 0.3 },
   rail: { friction: 0.35, restitution: 0.45 },
-  // The V below the holes: shallow and slick, so coins run inward along it.
-  ramp: { friction: 0.1, restitution: 0.3 },
+  chute: { friction: 0.2, restitution: 0.2 },
+  // Coin on coin: the stack tops are what a missed coin runs along.
+  stack: { friction: 0.28, restitution: 0.22 },
   // The launch channel and its turn: polished metal, so the coin keeps speed.
   guide: { friction: 0.08, restitution: 0.25 },
 };
@@ -68,6 +70,8 @@ const COIN_RESTITUTION = 0.12;
 export type Board = {
   world: World;
   coin: Body;
+  /** Carries the shelf fixtures for the stack tops; rebuilt when they change. */
+  stackBody: Body;
   tune: Tune;
   /**
    * How many coins stand in each tube. A full tube cannot take another, so the
@@ -77,6 +81,8 @@ export type Board = {
   /** Seconds since launch. */
   t: number;
   stall: number;
+  /** Seconds spent down among the tubes. A coin there belongs to a stack. */
+  bankTime: number;
   /** Largest contact impulse since the last read, and what it struck. */
   loudest: number;
   loudestOn: Surface | null;
@@ -116,6 +122,8 @@ export function createBoard(tune: Tune = TUNE): Board {
     });
   }
 
+  const stackBody = world.createBody({ type: 'static' });
+
   const coin = world.createBody({
     type: 'dynamic',
     position: new Vec2(m(LAUNCH_X), m(LAUNCH_Y)),
@@ -135,10 +143,12 @@ export function createBoard(tune: Tune = TUNE): Board {
   const board: Board = {
     world,
     coin,
+    stackBody,
     tune,
     columns: new Array(COL_COUNT).fill(0),
     t: 0,
     stall: 0,
+    bankTime: 0,
     loudest: 0,
     loudestOn: null,
   };
@@ -167,6 +177,7 @@ export function launchBoard(board: Board, power: number) {
   board.coin.setAwake(true);
   board.t = 0;
   board.stall = 0;
+  board.bankTime = 0;
   board.loudest = 0;
   board.loudestOn = null;
 }
@@ -184,26 +195,39 @@ export function coinState(board: Board) {
   };
 }
 
-/** Height of the inward-running ramp at a given x. */
-export function rampY(x: number): number {
-  const half = 50 - CENTRE_GAP - RAMP_X_L;
-  const t = Math.min(1, Math.max(0, (Math.abs(x - 50) - CENTRE_GAP) / half));
-  return RAMP_APEX_Y - (RAMP_APEX_Y - RAMP_OUT_Y) * t;
+/**
+ * Rebuilds the shelves the coin runs along, one per tube at the top of its
+ * stack. Called when a stack changes, not every frame.
+ */
+export function syncStacks(board: Board, counts: number[]) {
+  board.columns = counts;
+  for (let f = board.stackBody.getFixtureList(); f; ) {
+    const next = f.getNext();
+    board.stackBody.destroyFixture(f);
+    f = next;
+  }
+  for (const s of stackShelves(counts)) {
+    board.stackBody.createFixture({
+      shape: new Edge(new Vec2(m(s.x1), m(s.y1)), new Vec2(m(s.x2), m(s.y2))),
+      ...MATERIAL.stack,
+      userData: 'stack',
+    });
+  }
 }
 
 /** Which tube sits under a given x, or -1 outside the bank. */
-export function columnAt(x: number, pitch: number, left: number): number {
-  const k = Math.floor((x - left) / pitch);
-  return k >= 0 && k < COL_COUNT ? k : -1;
+export function columnAt(x: number): number {
+  if (x >= CHUTE_X0 && x <= CHUTE_X1) return -1;
+  for (let k = 0; k < COL_COUNT; k++) {
+    const left = tubeLeft(k);
+    if (x >= left && x < left + TUBE_PITCH) return k;
+  }
+  return -1;
 }
 
-/**
- * Where a coin ends up once it reaches the bottom of the V: the nearest tube
- * with room, searching outward, or the middle chute if the bank is full.
- */
-function settleLow(board: Board, x: number): number {
-  const pitch = (RAIL_X_R - RAIL_X_L) / COL_COUNT;
-  const from = Math.max(0, Math.min(COL_COUNT - 1, columnAt(x, pitch, RAIL_X_L)));
+/** Last resort: the nearest tube with room, or the chute if the bank is full. */
+function settleAnywhere(board: Board, x: number): number {
+  const from = Math.max(0, Math.min(COL_COUNT - 1, columnAt(x)));
   for (let d = 0; d < COL_COUNT; d++) {
     for (const k of [from - d, from + d]) {
       if (k >= 0 && k < COL_COUNT && board.columns[k] < COL_MAX) {
@@ -268,20 +292,35 @@ export function stepBoard(board: Board, dt: number): number {
       }
     }
 
-    // Running along the V: drop into the first tube with room.
-    const ramp = rampY(x);
-    if (y > ramp - COIN_R - RAMP_BAND && vy > -5) {
-      const pitch = (RAIL_X_R - RAIL_X_L) / COL_COUNT;
-      const k = columnAt(x, pitch, RAIL_X_L);
-      if (k >= 0 && board.columns[k] < COL_MAX) return columnResult(k);
+    // The payout chute takes the coin only when every tube is full and there is
+    // nowhere else for it to go. Otherwise it drops into a neighbouring tube,
+    // the way it would if the stack beside it were standing lower.
+    if (x > CHUTE_X0 && x < CHUTE_X1 && y > COL_TOP + 6) {
+      const full = board.columns.every((n) => n >= COL_MAX);
+      return full ? RESULT_CENTRE : settleAnywhere(board, x);
     }
-    // At the bottom of the V: the middle chute only takes the coin when every
-    // tube is full and there is nowhere else for it to go.
-    if (y > RAMP_APEX_Y + COIN_R) return settleLow(board, x);
-    if (board.t > MAX_FLIGHT) {
-      // Nothing should take this long. The machine keeps it.
-      return settleLow(board, x);
+
+    // Once a coin is down among the tubes it is going to end up in one; give
+    // it a moment to settle, then put it where it is.
+    if (y > COL_TOP - COIN_R) {
+      board.bankTime += FIXED_DT;
+      if (board.bankTime > 1) return settleAnywhere(board, x);
+    } else {
+      board.bankTime = 0;
     }
+
+    // Come to rest on top of a stack, and become part of it.
+    const k = columnAt(x);
+    if (k >= 0 && board.columns[k] < COL_MAX) {
+      const surface = stackTopY(board.columns[k]);
+      if (y > surface - COIN_R - 1.2 && Math.hypot(vx, vy) < SETTLE_SPEED) {
+        return columnResult(k);
+      }
+    }
+
+    if (y > COL_BOTTOM) return settleAnywhere(board, x);
+    // Nothing should take this long. The machine keeps it.
+    if (board.t > MAX_FLIGHT) return settleAnywhere(board, x);
   }
 
   return RESULT_FLYING;

@@ -1,12 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { COIN_R, COL_BOTTOM } from '../engine';
+import { COIN_R, STACK_PITCH, TUBE_PITCH, stackTopY, tubeX } from '../engine';
 import { Coin } from './Coin';
-import { TUBE_PITCH, tubeX } from './Playfield';
-
-/** Coins stack in a tube this far apart, so they overlap as on the cabinet. */
-export const STACK_PITCH = 3.6;
 
 /**
  * One tube of coin stock. Memoised on its own count, so paying a win out of one
@@ -35,7 +31,7 @@ const Tube = React.memo(function Tube({
           style={{
             position: 'absolute',
             left,
-            top: (COL_BOTTOM - COIN_R - 0.3 - j * STACK_PITCH) * scale - diameter / 2,
+            top: (stackTopY(j + 1) + COIN_R) * scale - diameter / 2,
           }}
         />
       ))}

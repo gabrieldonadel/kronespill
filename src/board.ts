@@ -19,11 +19,15 @@ import {
   POCKET_DEPTH,
   RAIL_X_L,
   RAIL_X_R,
-  RAMP_APEX_Y,
-  RAMP_OUT_Y,
-  RAMP_X_L,
-  RAMP_X_R,
-  CENTRE_GAP,
+  CHUTE_X0,
+  CHUTE_X1,
+  COL_BOTTOM,
+  COL_TOP,
+  COL_COUNT,
+  COL_MAX,
+  TUBE_PITCH,
+  stackTopY,
+  tubeLeft,
   TUNE,
   TURN_CX,
   TURN_CY,
@@ -35,7 +39,15 @@ import {
   type Tune,
 } from './engine';
 
-export type Surface = 'pin' | 'bumper' | 'arch' | 'wall' | 'rail' | 'guide' | 'ramp';
+export type Surface =
+  | 'pin'
+  | 'bumper'
+  | 'arch'
+  | 'wall'
+  | 'rail'
+  | 'guide'
+  | 'chute'
+  | 'stack';
 
 export type BoardEdge = {
   x1: number;
@@ -102,15 +114,16 @@ export function boardEdges(tune: Tune = TUNE): BoardEdge[] {
   ) => edges.push({ x1, y1, x2, y2, surface });
   const ry = (x: number) => railY(x, tune.railDrop);
 
-  // Side rails. They stop where the ramp meets them: there is no way out of
-  // the field at the sides, only down into the tubes or the middle chute.
-  add(WALL_L, 4, WALL_L, RAMP_OUT_Y, 'wall');
+  // Side rails, running all the way down past the tube bank. There is no way
+  // out of the field at the sides: a coin either pays out or joins a stack.
+  add(WALL_L, 4, WALL_L, COL_BOTTOM, 'wall');
   // Above the channel head the outer boundary is the guide's own lip.
-  add(WALL_R, CHANNEL_TURN_Y, WALL_R, RAMP_OUT_Y, 'wall');
+  add(WALL_R, CHANNEL_TURN_Y, WALL_R, COL_BOTTOM, 'wall');
 
-  // The V under the holes, closing the field and running coins inward.
-  add(RAMP_X_L, RAMP_OUT_Y, 50 - CENTRE_GAP, RAMP_APEX_Y, 'ramp');
-  add(50 + CENTRE_GAP, RAMP_APEX_Y, RAMP_X_R, RAMP_OUT_Y, 'ramp');
+  // Walls of the payout chute. Its mouth is level with the tops of the tubes,
+  // so a coin can only run into it across stacks that are full.
+  add(CHUTE_X0, COL_TOP + 4, CHUTE_X0, COL_BOTTOM, 'chute');
+  add(CHUTE_X1, COL_TOP + 4, CHUTE_X1, COL_BOTTOM, 'chute');
 
   // Launch channel down the right edge. The outer side is the board's own
   // rail; this is the inner wall and the quarter turn at its head.
@@ -163,6 +176,23 @@ export function boardEdges(tune: Tune = TUNE): BoardEdge[] {
   }
 
   return edges;
+}
+
+/**
+ * The surface a coin runs on in the tube bank: the top of each stack. Rebuilt
+ * whenever a stack changes, which is once a round.
+ */
+export function stackShelves(counts: number[]): BoardEdge[] {
+  return counts.map((n, i) => {
+    const y = stackTopY(Math.min(n, COL_MAX));
+    return {
+      x1: tubeLeft(i),
+      y1: y,
+      x2: tubeLeft(i) + TUBE_PITCH,
+      y2: y,
+      surface: 'stack' as Surface,
+    };
+  });
 }
 
 export function boardGeometry(tune: Tune = TUNE) {

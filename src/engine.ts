@@ -66,22 +66,14 @@ export const POCKET_DEPTH = 4.5;
 export const CAPTURE_DEPTH = 2.5;
 
 /**
- * Below the holes the field closes into a shallow V. A coin that misses every
- * hole lands on it and runs inward, dropping into the outermost tube that still
- * has room — which is why the outer stacks stand highest on the real cabinet.
- * If every tube is full there is nowhere left to go and the coin runs on down
- * the middle chute, which pays the jackpot.
+ * A coin that misses every hole falls onto the tops of the coin stacks and runs
+ * along them. The stacks stand highest at the outside, so it runs inward and
+ * settles into the lowest one with room. When every tube is full the surface is
+ * level all the way to the middle, and the coin runs on into the payout chute,
+ * which pays the jackpot.
  */
-/** Outer ends sit low enough to clear the end of the hole rail. */
-export const RAMP_OUT_Y = 52;
-export const RAMP_APEX_Y = 57.5;
-/** The V meets the side rails, so there is no corner to wedge a coin in. */
-export const RAMP_X_L = 2;
-export const RAMP_X_R = 98;
-/** Half width of the opening at the bottom of the V. */
-export const CENTRE_GAP = 3.4;
-/** A coin has to be running along the ramp to drop into a tube. */
-export const RAMP_BAND = 2.6;
+/** A coin this slow on the stacks has settled. */
+export const SETTLE_SPEED = 16;
 
 /** The rail carrying the pocket row stops here; past it lie the side channels. */
 export const RAIL_X_L = 7.6;
@@ -91,6 +83,34 @@ export const COL_TOP = 58;
 export const COL_BOTTOM = 106;
 export const COL_COUNT = 18;
 export const COL_MAX = 12;
+
+/**
+ * The tube bank: nine tubes, the payout chute, then nine more. Coins stack in a
+ * tube this far apart, overlapping as they do on the cabinet.
+ */
+export const CHUTE_W = 4.7;
+export const STACK_PITCH = 3.6;
+export const TUBE_PITCH = (RAIL_X_R - RAIL_X_L - CHUTE_W) / COL_COUNT;
+export const CHUTE_X0 = RAIL_X_L + (COL_COUNT / 2) * TUBE_PITCH;
+export const CHUTE_X1 = CHUTE_X0 + CHUTE_W;
+
+/** Left edge of a tube. */
+export function tubeLeft(i: number): number {
+  const base = RAIL_X_L + i * TUBE_PITCH;
+  return i < COL_COUNT / 2 ? base : base + CHUTE_W;
+}
+
+export const tubeX = (i: number) => tubeLeft(i) + TUBE_PITCH / 2;
+
+/**
+ * Height of the surface a coin rests on in a tube: the top of the stack, or the
+ * tube floor when it is empty. This is what coins roll along — there is no ramp
+ * under the holes, the stacks themselves are the floor.
+ */
+export function stackTopY(count: number): number {
+  if (count <= 0) return COL_BOTTOM - 0.3;
+  return COL_BOTTOM - 0.3 - (count - 1) * STACK_PITCH - COIN_R;
+}
 
 /**
  * Launcher. The coin is flicked up the channel down the right edge of the

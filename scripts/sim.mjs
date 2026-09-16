@@ -1,13 +1,16 @@
 // Monte Carlo over the shipped board. Run: node scripts/sim.mjs [plays]
 import { SLOT_VALUES, MAX_FLIGHT, TUNE, COL_COUNT, COL_MAX, RESULT_CENTRE, resultColumn } from '../src/engine.ts';
-import { createBoard, launchBoard, stepBoard, RESULT_FLYING } from '../src/physics.ts';
+import { createBoard, launchBoard, stepBoard, syncStacks, RESULT_FLYING } from '../src/physics.ts';
 
 const PLAYS = Number(process.argv[2] ?? 20000);
 const DT = 1 / 60;
 const board = createBoard(TUNE);
 // Start from the stock the cabinet is photographed with.
-board.columns = Array.from({ length: COL_COUNT }, (_, i) =>
-  Math.min(COL_MAX, Math.round(6 + Math.abs(i - (COL_COUNT - 1) / 2) * 0.72)),
+syncStacks(
+  board,
+  Array.from({ length: COL_COUNT }, (_, i) =>
+    Math.min(COL_MAX, Math.round(6 + Math.abs(i - (COL_COUNT - 1) / 2) * 0.72)),
+  ),
 );
 
 function play(power) {
@@ -37,13 +40,19 @@ for (let i = 0; i < PLAYS; i++) {
     band.hits++; band.paid += SLOT_VALUES[r - 1];
     // Paid out of the stock behind that hole.
     const k = Math.min(COL_COUNT - 1, Math.max(0, Math.round((r - 1) * 2)));
-    board.columns[k] = Math.max(0, board.columns[k] - SLOT_VALUES[r - 1]);
+    const next = [...board.columns];
+    next[k] = Math.max(0, next[k] - SLOT_VALUES[r - 1]);
+    syncStacks(board, next);
   } else if (r === RESULT_CENTRE) {
     centre++; paid += 10; band.hits++; band.paid += 10;
   } else {
     const k = resultColumn(r);
     cols[k]++; kept++;
-    if (k >= 0) board.columns[k] = Math.min(COL_MAX, board.columns[k] + 1);
+    if (k >= 0) {
+      const next = [...board.columns];
+      next[k] = Math.min(COL_MAX, next[k] + 1);
+      syncStacks(board, next);
+    }
   }
 }
 

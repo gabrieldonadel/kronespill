@@ -1,6 +1,6 @@
 // Board balance search. Run: node --import ./scripts/register.mjs scripts/grid.mjs [plays]
 import { SLOT_VALUES, TUNE, COL_COUNT, COL_MAX, RESULT_CENTRE } from '../src/engine.ts';
-import { createBoard, launchBoard, stepBoard, RESULT_FLYING } from '../src/physics.ts';
+import { createBoard, launchBoard, stepBoard, syncStacks, RESULT_FLYING } from '../src/physics.ts';
 
 const N = Number(process.argv[2] ?? 600);
 const DT = 1 / 60;
@@ -8,8 +8,11 @@ const DT = 1 / 60;
 export function evaluate(over, n = N) {
   const tune = { ...TUNE, ...over };
   const board = createBoard(tune);
-  board.columns = Array.from({ length: COL_COUNT }, (_, i) =>
-    Math.min(COL_MAX, Math.round(6 + Math.abs(i - (COL_COUNT - 1) / 2) * 0.72)),
+  syncStacks(
+    board,
+    Array.from({ length: COL_COUNT }, (_, i) =>
+      Math.min(COL_MAX, Math.round(6 + Math.abs(i - (COL_COUNT - 1) / 2) * 0.72)),
+    ),
   );
   const hits = new Array(9).fill(0);
   let paid = 0, won = 0, time = 0, timeouts = 0;

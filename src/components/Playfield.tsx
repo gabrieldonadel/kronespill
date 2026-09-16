@@ -19,8 +19,12 @@ import {
   TURN_CY,
   TURN_R_IN,
   TURN_R_OUT,
-  RAMP_APEX_Y,
-  RAMP_OUT_Y,
+  CHUTE_X0,
+  CHUTE_X1,
+  CHUTE_W,
+  TUBE_PITCH,
+  tubeLeft,
+  tubeX,
   PAYOUT_CHUTE_BOTTOM,
   PAYOUT_CHUTE_X,
   COL_BOTTOM,
@@ -41,10 +45,6 @@ import {
 import { C } from '../theme';
 import { CrownShield } from './CrownShield';
 import { Starburst } from './Starburst';
-
-export const CHUTE_HALF = 3.4;
-export const TUBE_PITCH = (RAIL_X_R - RAIL_X_L) / COL_COUNT;
-export const tubeX = (i: number) => RAIL_X_L + TUBE_PITCH * (i + 0.5);
 
 /**
  * The tube channels are cut in a shallow V, tallest at the outside, the way
@@ -206,30 +206,10 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
         );
       })}
 
-      {/* The rails under the holes form a flattened diamond. The lower V is
-          what the coin actually runs on, so it is drawn from the collision
-          geometry; the upper one is the moulding above it. */}
-      <Path
-        d={`M6 ${RAMP_OUT_Y} L50 ${RAMP_OUT_Y - 4.5} L94 ${RAMP_OUT_Y}`}
-        fill="none"
-        stroke={C.ink}
-        strokeWidth={1.7}
-        strokeLinejoin="round"
-      />
-      <Path
-        d={edges
-          .filter((e) => e.surface === 'ramp')
-          .map((e) => `M${e.x1} ${e.y1} L${e.x2} ${e.y2}`)
-          .join(' ')}
-        fill="none"
-        stroke={C.ink}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-      />
 
       {/* Coin tube channels. */}
       {Array.from({ length: COL_COUNT }, (_, i) => {
-        const x = RAIL_X_L + TUBE_PITCH * i;
+        const x = tubeLeft(i);
         const top = tubeTop(i);
         return (
           <G key={`tube${i}`}>
@@ -256,36 +236,36 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
 
       {/* Launch chute: striped cover with the starred crown at its head. */}
       <Rect
-        x={PAYOUT_CHUTE_X - CHUTE_HALF}
-        y={RAMP_APEX_Y + 2.5}
-        width={CHUTE_HALF * 2}
-        height={PAYOUT_CHUTE_BOTTOM - RAMP_APEX_Y - 2.5}
+        x={CHUTE_X0}
+        y={COL_TOP + 4}
+        width={CHUTE_W}
+        height={PAYOUT_CHUTE_BOTTOM - COL_TOP - 4}
         fill="url(#chute)"
       />
       {Array.from({ length: 7 }, (_, i) => (
         <Rect
           key={`stripe${i}`}
-          x={PAYOUT_CHUTE_X - CHUTE_HALF + 0.7 + i * 0.85}
-          y={RAMP_APEX_Y + 3.5}
-          width={0.34}
-          height={PAYOUT_CHUTE_BOTTOM - RAMP_APEX_Y - 4.5}
+          x={CHUTE_X0 + 0.55 + i * 0.58}
+          y={COL_TOP + 5}
+          width={0.26}
+          height={PAYOUT_CHUTE_BOTTOM - COL_TOP - 6}
           fill={C.ink}
         />
       ))}
       <G>
         <Path
-          d={`M${PAYOUT_CHUTE_X - 3.6} ${RAMP_APEX_Y - 3.4} L${PAYOUT_CHUTE_X - 3.6} ${RAMP_APEX_Y - 5.4} L${PAYOUT_CHUTE_X - 1.8} ${RAMP_APEX_Y - 4.2} L${PAYOUT_CHUTE_X - 1.8} ${RAMP_APEX_Y - 6.2} L${PAYOUT_CHUTE_X} ${RAMP_APEX_Y - 4.8} L${PAYOUT_CHUTE_X + 1.8} ${RAMP_APEX_Y - 6.2} L${PAYOUT_CHUTE_X + 1.8} ${RAMP_APEX_Y - 4.2} L${PAYOUT_CHUTE_X + 3.6} ${RAMP_APEX_Y - 5.4} L${PAYOUT_CHUTE_X + 3.6} ${RAMP_APEX_Y - 3.4} Z`}
+          d={`M${PAYOUT_CHUTE_X - 3.2} ${COL_TOP - 1} L${PAYOUT_CHUTE_X - 3.2} ${COL_TOP - 3} L${PAYOUT_CHUTE_X - 1.6} ${COL_TOP - 1.9} L${PAYOUT_CHUTE_X - 1.6} ${COL_TOP - 3.9} L${PAYOUT_CHUTE_X} ${COL_TOP - 2.5} L${PAYOUT_CHUTE_X + 1.6} ${COL_TOP - 3.9} L${PAYOUT_CHUTE_X + 1.6} ${COL_TOP - 1.9} L${PAYOUT_CHUTE_X + 3.2} ${COL_TOP - 3} L${PAYOUT_CHUTE_X + 3.2} ${COL_TOP - 1} Z`}
           fill={C.crownYellow}
         />
         <Path
-          d={`M${PAYOUT_CHUTE_X - 3.6} ${RAMP_APEX_Y - 3.4} H${PAYOUT_CHUTE_X + 3.6} V${RAMP_APEX_Y + 1.4} L${PAYOUT_CHUTE_X} ${RAMP_APEX_Y + 4.2} L${PAYOUT_CHUTE_X - 3.6} ${RAMP_APEX_Y + 1.4} Z`}
+          d={`M${PAYOUT_CHUTE_X - 3.2} ${COL_TOP - 1} H${PAYOUT_CHUTE_X + 3.2} V${COL_TOP + 2.6} L${PAYOUT_CHUTE_X} ${COL_TOP + 5} L${PAYOUT_CHUTE_X - 3.2} ${COL_TOP + 2.6} Z`}
           fill={C.crownYellow}
         />
         <SvgText
           x={PAYOUT_CHUTE_X}
-          y={RAMP_APEX_Y + 0.9}
+          y={COL_TOP + 2}
           textAnchor="middle"
-          fontSize="3"
+          fontSize="2.6"
           fill={C.ink}
         >
           ★★★
