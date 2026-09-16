@@ -43,7 +43,7 @@ export const WALL_R = 98;
 export const ARCH_CX = 50;
 export const ARCH_CY = 40;
 export const ARCH_RX = 48;
-export const ARCH_RY = 34;
+export const ARCH_RY = 38.4;
 
 /** Nine crown pockets: 3 2 3 2 [10] 3 2 3 2, as painted on the cabinet. */
 export const SLOT_VALUES = [3, 2, 3, 2, 10, 3, 2, 3, 2];
@@ -70,12 +70,42 @@ export const COL_BOTTOM = 106;
 export const COL_COUNT = 18;
 export const COL_MAX = 12;
 
-/** Launcher: the striped chute on the centre line. */
-export const CHUTE_X = 50;
-export const CHUTE_TOP = 54;
-export const CHUTE_BOTTOM = 104;
-export const LAUNCH_X = 50;
-export const LAUNCH_Y = 41.5;
+/**
+ * Launcher. The coin is flicked up the channel down the right edge of the
+ * glass, rounds the guide at the top right, and is released heading left along
+ * the ceiling — so a harder flick carries it further across the board. The
+ * black cover over that channel is visible on the right of the cabinet in both
+ * the photograph and the video.
+ */
+export const CHANNEL_INNER_X = 92.5;
+export const CHANNEL_MOUTH_Y = 40;
+export const CHANNEL_TURN_Y = 14;
+/** Centre of the quarter turn at the head of the channel. */
+export const TURN_CX = 86;
+export const TURN_CY = 17;
+export const TURN_R_OUT = 12;
+export const TURN_R_IN = 6.5;
+/** Where the guide lets go of the coin. */
+export const RELEASE_X = TURN_CX;
+export const RELEASE_Y = TURN_CY - (TURN_R_OUT + TURN_R_IN) / 2;
+
+export const LAUNCH_X = (CHANNEL_INNER_X + 98) / 2 + 0.2;
+export const LAUNCH_Y = 37;
+
+/** Ceiling: shallow across the top, steepening down the left side. */
+/** The ceiling lifts away from the guide's lip so the released coin has air. */
+export const CEIL_LIFT_X = 76;
+export const CEIL_APEX_X = 50;
+export const CEIL_APEX_Y = 1.6;
+
+/**
+ * The striped strip up the middle of the tube bank, with the starred crown at
+ * its head. It is the payout run: coins pushed out of the tubes travel down it
+ * to the bowl. It is drawn, not simulated.
+ */
+export const PAYOUT_CHUTE_X = 50;
+export const PAYOUT_CHUTE_TOP = 54;
+export const PAYOUT_CHUTE_BOTTOM = 104;
 
 // -------------------------------------------------------------------- tuning
 
@@ -107,7 +137,8 @@ export type Tune = {
   jackpotEnterScale: number;
   /** A coin bouncing high over the row cannot drop into anything. */
   rollBand: number;
-  /** Flick lean off vertical, in degrees. Positive sends the coin left. */
+  /** Flick lean off vertical, in degrees. The channel holds the coin, so this
+   * is only the wobble a spring flicker gives it. */
   lean: number;
   speedMin: number;
   speedMax: number;
@@ -146,10 +177,10 @@ export const TUNE: Tune = {
   enterRate: 0.66,
   jackpotEnterScale: 0.45,
   rollBand: 1.6,
-  lean: 12,
-  speedMin: 230,
-  speedMax: 330,
-  leanJitter: 4,
+  lean: 0,
+  speedMin: 228,
+  speedMax: 312,
+  leanJitter: 2.5,
   speedJitter: 0.06,
   linDamp: 0.02,
   angDamp: 0.04,

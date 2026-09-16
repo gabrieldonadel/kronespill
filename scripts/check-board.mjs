@@ -6,7 +6,7 @@
 import { boardGeometry } from '../src/board.ts';
 import {
   COIN_R, TUNE, SLOT_VALUES, SLOT_XS, RAIL_X_L, RAIL_X_R, WALL_L, WALL_R,
-  POCKET_DEPTH, railY,
+  POCKET_DEPTH, railY, CHANNEL_INNER_X, TURN_R_IN, TURN_R_OUT,
 } from '../src/engine.ts';
 
 const COIN_D = COIN_R * 2;
@@ -58,7 +58,11 @@ for (let i = 0; i < edges.length; i++) {
   for (let j = i + 1; j < edges.length; j++) {
     const a = edges[i], b = edges[j];
     if (a.surface === 'arch' || b.surface === 'arch') continue;
-    if (a.surface === b.surface && a.surface === 'rail') continue; // one polyline
+    // The rail and the launch guide are each one designed run; their widths are
+    // asserted below rather than pairwise.
+    if (a.surface === b.surface && (a.surface === 'rail' || a.surface === 'guide')) continue;
+    if (a.surface === 'guide' && b.surface === 'wall') continue;
+    if (b.surface === 'guide' && a.surface === 'wall') continue;
     let best = { d: Infinity, x: 0, y: 0 };
     for (const [p, e] of [[[a.x1, a.y1], b], [[a.x2, a.y2], b], [[b.x1, b.y1], a], [[b.x2, b.y2], a]]) {
       const hit = pointSeg(p[0], p[1], e);
@@ -83,6 +87,12 @@ SLOT_VALUES.forEach((v, k) => {
     }
   }
 });
+
+// The launch channel and the turn at its head have to pass a coin.
+const channelW = WALL_R - CHANNEL_INNER_X;
+if (channelW <= COIN_D) bad.push(`launch channel is only ${channelW.toFixed(2)} wide`);
+const grooveW = TURN_R_OUT - TURN_R_IN;
+if (grooveW <= COIN_D) bad.push(`launch turn groove is only ${grooveW.toFixed(2)} wide`);
 
 // The drop channel beside each rail end has to pass a coin, or misses jam.
 [['left', RAIL_X_L - WALL_L], ['right', WALL_R - RAIL_X_R]].forEach(([side, w]) => {

@@ -1,45 +1,39 @@
 import React from 'react';
-import Svg, { Circle, G, Path } from 'react-native-svg';
-import { COL_BOTTOM, COL_COUNT, COIN_R, GLASS_H, GLASS_W } from '../engine';
-import { C } from '../theme';
-import { TUBE_PITCH, tubeTop, tubeX } from './Playfield';
+import { View } from 'react-native';
+
+import { COIN_R, COL_BOTTOM } from '../engine';
+import { Coin } from './Coin';
+import { TUBE_PITCH, tubeX } from './Playfield';
 
 /** Coins stack in a tube this far apart, so they overlap as on the cabinet. */
 export const STACK_PITCH = 3.6;
 
-/** The coin stock sitting in the tube bank. Redraws only when a stack changes. */
+/**
+ * The coin stock sitting in the tube bank, drawn with the real coin. Redraws
+ * only when a stack changes, which is once per round.
+ */
 export const TubeBank = React.memo(
   function TubeBank({ counts, scale }: { counts: number[]; scale: number }) {
+    const d = Math.min(COIN_R * 2, TUBE_PITCH - 0.35) * scale;
     return (
-      <Svg
-        width={GLASS_W * scale}
-        height={GLASS_H * scale}
-        viewBox={`0 0 ${GLASS_W} ${GLASS_H}`}
-      >
-        {counts.map((n, i) => (
-          <G key={`stack${i}`}>
-            {Array.from({ length: n }, (_, j) => (
-              <G key={j}>
-                <Circle
-                  cx={tubeX(i)}
-                  cy={COL_BOTTOM - COIN_R - 0.3 - j * STACK_PITCH}
-                  r={Math.min(COIN_R, TUBE_PITCH / 2 - 0.2)}
-                  fill={(i * 7 + j) % 3 === 0 ? C.coin : C.coinMid}
-                  stroke="#5A5F64"
-                  strokeWidth={0.34}
-                />
-                {/* A hint of relief, so a stack does not read as flat discs. */}
-                <Path
-                  d={`M${tubeX(i) - 1.1} ${COL_BOTTOM - COIN_R - 0.9 - j * STACK_PITCH} h2.2`}
-                  stroke={C.coinDark}
-                  strokeWidth={0.3}
-                  opacity={0.5}
-                />
-              </G>
-            ))}
-          </G>
-        ))}
-      </Svg>
+      <View style={{ flex: 1 }} pointerEvents="none">
+        {counts.map((n, i) =>
+          Array.from({ length: n }, (_, j) => (
+            <Coin
+              key={`${i}-${j}`}
+              size={d}
+              detail={false}
+              // Machines are loaded from a mixed roll, so the faces alternate.
+              face={(i * 7 + j) % 3 === 0 ? 'obverse' : 'reverse'}
+              style={{
+                position: 'absolute',
+                left: tubeX(i) * scale - d / 2,
+                top: (COL_BOTTOM - COIN_R - 0.3 - j * STACK_PITCH) * scale - d / 2,
+              }}
+            />
+          )),
+        )}
+      </View>
     );
   },
   (a, b) => a.scale === b.scale && a.counts.join() === b.counts.join(),

@@ -17,11 +17,22 @@ the chevron, the eighteen coin tubes, the striped launch chute and the
 | Control | What it does |
 | --- | --- |
 | **LEGG PÅ MYNT** | Insert one krone. One at a time, as the plate says. |
-| **Lever** | Drag down to set the flick, release to shoot the coin up the chute. |
+| **Lever** | Drag down to set the flick, release to shoot. |
 | **Coin bowl** | Tap it to pocket your winnings. |
 
-A coin that drops into a crown hole pays what the shield says, out of the tube
-stock behind it. A coin that misses rolls off the rail and the machine keeps it.
+The coin is flicked up the channel down the **right edge** of the glass, rounds
+the guide at the top right and is released heading left along the ceiling, then
+falls through the pins. A flick too weak to round the guide drops back out of
+the channel — a wasted krone, exactly as on the machine.
+
+A coin that drops into a crown hole pays what the shield says, **out of the tube
+stock behind that hole**: coins leave the bottom of the tube one at a time and
+the stack steps down as they fall into the bowl. A coin that misses rolls off
+the rail and the machine keeps it.
+
+The coin is the real thing — both faces of a 1983 Olav V krone, photographed and
+masked to the rim. A machine of this vintage takes exactly that coin; the 1997
+replacement with its centre hole is what put these machines out of service.
 
 ## How it is put together
 
@@ -30,6 +41,7 @@ stock behind it. A coin that misses rolls off the rail and the machine keeps it.
 | `src/engine.ts` | Board constants and the `Tune` knobs. No physics. |
 | `src/board.ts` | The single description of the collision geometry. |
 | `src/physics.ts` | The solver: [planck.js](https://github.com/piqnt/planck.js), a TypeScript rewrite of Box2D. |
+| `src/payout.ts` | Where a win's coins come from. Pure, and tested. |
 | `src/sound.ts` | Sound, cut from a video of the real machine. |
 | `src/Game.tsx` | The cabinet, the controls and the round. |
 
@@ -43,6 +55,13 @@ The coin is a disc with real angular dynamics, so it rolls along the rail and
 spins off the pins. Contact impulses come out of the solver and drive both the
 sound and the haptics, so a glancing touch is quiet and a solid pin strike is
 not.
+
+**The launcher is on the right.** Both the photograph and the reference video
+(a *Salina Alu* cabinet, made in Østfold in the 1980s) show a black-covered
+channel down the right edge of the glass, running from the top down to just
+above the shields, with the flick mechanism outside the frame at the top right.
+The guide at its head is a 5.5-unit groove — wide enough to pass a coin, narrow
+enough to hold it through the turn.
 
 **Gravity is derived, not dialled in.** The cabinet hangs on the wall leaning
 back, so the coin runs on an inclined plane and only feels g·sin(theta) along the
@@ -59,19 +78,20 @@ node --import ./scripts/register.mjs scripts/check-board.mjs   # geometry faults
 node --import ./scripts/register.mjs scripts/sim.mjs 4000      # payback, hit rate, flight
 node --import ./scripts/register.mjs scripts/grid.mjs 900      # sweep the knobs
 node --import ./scripts/register.mjs scripts/resonance.mjs 230 330 250 24
+node --import ./scripts/register.mjs scripts/payout.test.mjs   # payout accounting
 ```
 
 Current board, over 4 000 simulated flicks:
 
 | | |
 | --- | --- |
-| hit rate | 31.9% |
-| payback | 0.879 kr per krone played |
-| house edge | 12.1% |
-| flight | 2.43 s mean, 4.76 s worst |
+| hit rate | 29.9% |
+| payback | 0.852 kr per krone played |
+| house edge | 14.8% |
+| flight | 2.35 s mean, 4.28 s worst |
 | jammed coins | none |
-| jackpot | 1.2% of flicks |
-| left/right balance | 0.53, and all nine holes between 2.7% and 5.4% |
+| jackpot | 1.4% of flicks |
+| spread | all nine holes between 2.9% and 4.3% |
 
 No flick strength beats the machine: payback stays between 0.6 and 1.1 across
 the whole power range. That needs the flick jitter in `TUNE` — without it the

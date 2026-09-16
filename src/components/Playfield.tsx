@@ -12,17 +12,20 @@ import Svg, {
 } from 'react-native-svg';
 import { boardGeometry } from '../board';
 import {
-  ARCH_CX,
-  ARCH_RX,
-  ARCH_RY,
-  ARCH_CY,
+  CHANNEL_INNER_X,
+  CHANNEL_MOUTH_Y,
+  CHANNEL_TURN_Y,
+  TURN_CX,
+  TURN_CY,
+  TURN_R_IN,
+  TURN_R_OUT,
   CHEV_APEX_Y,
   CHEV_HALF_GAP,
   CHEV_OUT_X_L,
   CHEV_OUT_X_R,
   CHEV_OUT_Y,
-  CHUTE_BOTTOM,
-  CHUTE_X,
+  PAYOUT_CHUTE_BOTTOM,
+  PAYOUT_CHUTE_X,
   COL_BOTTOM,
   COL_COUNT,
   COL_TOP,
@@ -107,21 +110,35 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
       <Rect x="0" y="0" width={GLASS_W} height={GLASS_H} fill={C.fieldRed} />
       <Rect x="0" y="0" width={GLASS_W} height={GLASS_H} fill="url(#field)" />
 
-      {/* Arch rail across the top of the open field. */}
+      {/* Ceiling and arch, drawn from the same geometry the coin collides with. */}
       <Path
-        d={`M${WALL_L} ${ARCH_CY} A ${ARCH_RX} ${ARCH_RY} 0 0 1 ${WALL_R} ${ARCH_CY}`}
+        d={edges
+          .filter((e) => e.surface === 'arch')
+          .map((e) => `M${e.x1} ${e.y1} L${e.x2} ${e.y2}`)
+          .join(' ')}
         fill="none"
         stroke={C.ink}
         strokeWidth={2.6}
         strokeLinecap="round"
       />
+
+      {/* Launch channel down the right edge, and the turn at its head. The
+          black cover over it is visible on the cabinet. */}
       <Path
-        d={`M${WALL_L + 1.6} ${ARCH_CY} A ${ARCH_RX - 1.6} ${ARCH_RY - 1.6} 0 0 1 ${WALL_R - 1.6} ${ARCH_CY}`}
-        fill="none"
-        stroke={C.fieldDark}
-        strokeWidth={0.5}
-        opacity={0.5}
+        d={`M${CHANNEL_INNER_X} ${CHANNEL_MOUTH_Y} L${CHANNEL_INNER_X} ${CHANNEL_TURN_Y} A ${TURN_R_IN} ${TURN_R_IN} 0 0 0 ${TURN_CX} ${TURN_CY - TURN_R_IN} L${TURN_CX} ${TURN_CY - TURN_R_OUT} A ${TURN_R_OUT} ${TURN_R_OUT} 0 0 1 ${TURN_CX + TURN_R_OUT} ${TURN_CY} L${WALL_R} ${CHANNEL_MOUTH_Y} Z`}
+        fill={C.plate}
+        opacity={0.92}
       />
+      <Path
+        d={`M${CHANNEL_INNER_X} ${CHANNEL_MOUTH_Y} L${CHANNEL_INNER_X} ${CHANNEL_TURN_Y} A ${TURN_R_IN} ${TURN_R_IN} 0 0 0 ${TURN_CX} ${TURN_CY - TURN_R_IN}`}
+        fill="none"
+        stroke={C.aluMid}
+        strokeWidth={0.5}
+        opacity={0.7}
+      />
+      {[10, 20, 30].map((y) => (
+        <Circle key={`cscrew${y}`} cx={(CHANNEL_INNER_X + WALL_R) / 2} cy={y} r={0.55} fill={C.aluMid} />
+      ))}
 
       {/* Pins and bumpers. */}
       {pegs.map((peg, i) => {
@@ -194,13 +211,13 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
 
       {/* Chevron rail that sheds missed coins outward. */}
       <Path
-        d={`M${CHEV_OUT_X_L} ${CHEV_OUT_Y} L${CHUTE_X - CHEV_HALF_GAP} ${CHEV_APEX_Y}`}
+        d={`M${CHEV_OUT_X_L} ${CHEV_OUT_Y} L${PAYOUT_CHUTE_X - CHEV_HALF_GAP} ${CHEV_APEX_Y}`}
         stroke={C.ink}
         strokeWidth={1.7}
         strokeLinecap="round"
       />
       <Path
-        d={`M${CHUTE_X + CHEV_HALF_GAP} ${CHEV_APEX_Y} L${CHEV_OUT_X_R} ${CHEV_OUT_Y}`}
+        d={`M${PAYOUT_CHUTE_X + CHEV_HALF_GAP} ${CHEV_APEX_Y} L${CHEV_OUT_X_R} ${CHEV_OUT_Y}`}
         stroke={C.ink}
         strokeWidth={1.7}
         strokeLinecap="round"
@@ -235,33 +252,33 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
 
       {/* Launch chute: striped cover with the starred crown at its head. */}
       <Rect
-        x={CHUTE_X - CHUTE_HALF}
+        x={PAYOUT_CHUTE_X - CHUTE_HALF}
         y={CHEV_APEX_Y + 3}
         width={CHUTE_HALF * 2}
-        height={CHUTE_BOTTOM - CHEV_APEX_Y - 3}
+        height={PAYOUT_CHUTE_BOTTOM - CHEV_APEX_Y - 3}
         fill="url(#chute)"
       />
       {Array.from({ length: 7 }, (_, i) => (
         <Rect
           key={`stripe${i}`}
-          x={CHUTE_X - CHUTE_HALF + 0.7 + i * 0.85}
+          x={PAYOUT_CHUTE_X - CHUTE_HALF + 0.7 + i * 0.85}
           y={CHEV_APEX_Y + 4}
           width={0.34}
-          height={CHUTE_BOTTOM - CHEV_APEX_Y - 5}
+          height={PAYOUT_CHUTE_BOTTOM - CHEV_APEX_Y - 5}
           fill={C.ink}
         />
       ))}
       <G>
         <Path
-          d={`M${CHUTE_X - 3.6} ${CHEV_APEX_Y - 3.4} L${CHUTE_X - 3.6} ${CHEV_APEX_Y - 5.4} L${CHUTE_X - 1.8} ${CHEV_APEX_Y - 4.2} L${CHUTE_X - 1.8} ${CHEV_APEX_Y - 6.2} L${CHUTE_X} ${CHEV_APEX_Y - 4.8} L${CHUTE_X + 1.8} ${CHEV_APEX_Y - 6.2} L${CHUTE_X + 1.8} ${CHEV_APEX_Y - 4.2} L${CHUTE_X + 3.6} ${CHEV_APEX_Y - 5.4} L${CHUTE_X + 3.6} ${CHEV_APEX_Y - 3.4} Z`}
+          d={`M${PAYOUT_CHUTE_X - 3.6} ${CHEV_APEX_Y - 3.4} L${PAYOUT_CHUTE_X - 3.6} ${CHEV_APEX_Y - 5.4} L${PAYOUT_CHUTE_X - 1.8} ${CHEV_APEX_Y - 4.2} L${PAYOUT_CHUTE_X - 1.8} ${CHEV_APEX_Y - 6.2} L${PAYOUT_CHUTE_X} ${CHEV_APEX_Y - 4.8} L${PAYOUT_CHUTE_X + 1.8} ${CHEV_APEX_Y - 6.2} L${PAYOUT_CHUTE_X + 1.8} ${CHEV_APEX_Y - 4.2} L${PAYOUT_CHUTE_X + 3.6} ${CHEV_APEX_Y - 5.4} L${PAYOUT_CHUTE_X + 3.6} ${CHEV_APEX_Y - 3.4} Z`}
           fill={C.crownYellow}
         />
         <Path
-          d={`M${CHUTE_X - 3.6} ${CHEV_APEX_Y - 3.4} H${CHUTE_X + 3.6} V${CHEV_APEX_Y + 1.4} L${CHUTE_X} ${CHEV_APEX_Y + 4.2} L${CHUTE_X - 3.6} ${CHEV_APEX_Y + 1.4} Z`}
+          d={`M${PAYOUT_CHUTE_X - 3.6} ${CHEV_APEX_Y - 3.4} H${PAYOUT_CHUTE_X + 3.6} V${CHEV_APEX_Y + 1.4} L${PAYOUT_CHUTE_X} ${CHEV_APEX_Y + 4.2} L${PAYOUT_CHUTE_X - 3.6} ${CHEV_APEX_Y + 1.4} Z`}
           fill={C.crownYellow}
         />
         <SvgText
-          x={CHUTE_X}
+          x={PAYOUT_CHUTE_X}
           y={CHEV_APEX_Y + 0.9}
           textAnchor="middle"
           fontSize="3"

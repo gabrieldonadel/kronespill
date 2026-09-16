@@ -24,10 +24,10 @@ import {
   COL_BOTTOM,
   COL_COUNT,
   COL_MAX,
-  CHUTE_BOTTOM,
   GLASS_H,
   GLASS_W,
   LAUNCH_X,
+  LAUNCH_Y,
   RAIL_X_L,
   SLOT_VALUES,
   SLOT_XS,
@@ -42,6 +42,7 @@ import {
   RESULT_FLYING,
   type Board,
 } from './physics';
+import { keepPlayed, takeOne } from './payout';
 import {
   initSound,
   playImpact,
@@ -87,6 +88,9 @@ const AUTOPLAY =
 const START_BANK = 20;
 const REFILL = 20;
 const PAY_POOL = 10;
+/** One coin leaves the stack every STEP_MS, and falls for FLY_MS. */
+const PAY_STEP_MS = 95;
+const PAY_FLY_MS = 430;
 
 /** Tube stock starts in the V the cabinet is photographed with. */
 function initialTubes() {
@@ -134,7 +138,7 @@ export function Game() {
   // The solver owns the coin's state; these carry it to the UI thread so the
   // sprite keeps moving smoothly across React renders.
   const cx = useSharedValue(LAUNCH_X);
-  const cy = useSharedValue(CHUTE_BOTTOM - 4);
+  const cy = useSharedValue(LAUNCH_Y);
   const spin = useSharedValue(0);
   const coinShown = useSharedValue(0);
 
@@ -149,12 +153,14 @@ export function Game() {
     initSound();
     return () => {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      payTimers.current.forEach(clearTimeout);
     };
   }, []);
 
   // Flick strength, 0 to 1, driven by the lever.
   const power = useSharedValue(0);
-  const payP = useSharedValue(0);
+  const payMs = useSharedValue(0);
+  const payTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [payout, setPayout] = useState<{ x: number; y: number; n: number }>({
     x: 50,
     y: COL_BOTTOM,
@@ -177,21 +183,8 @@ export function Game() {
       const value = winning ? SLOT_VALUES[result - 1] : 0;
       const dropTube = winning ? tubeFor(SLOT_XS[result - 1]) : tubeFor(x);
 
-      setTubes((prev) => {
-        const next = [...prev];
-        if (winning) {
-          let left = value;
-          const a = Math.min(COL_COUNT - 1, dropTube);
-          const b = Math.min(COL_COUNT - 1, dropTube + 1);
-          while (left > 0 && next[a] + next[b] > 0) {
-            const from = next[a] >= next[b] ? a : b;
-            next[from] -= 1;
-            left -= 1;
-          }
-        }
-        next[dropTube] = Math.min(COL_MAX, next[dropTube] + 1);
-        return next;
-      });
+      // The coin played is always kept by the machine.
+      setTubes((prev) => keepPlayed(prev, dropTube));
 
       if (AUTOPLAY) {
         console.log(
@@ -203,12 +196,26 @@ export function Game() {
         setTray((t) => t + value);
         setWon((w) => w + value);
         setBest((bst) => Math.max(bst, value));
-        setPayout({ x: tubeX(dropTube), y: COL_BOTTOM, n: Math.min(PAY_POOL, value) });
-        payP.value = 0;
-        payP.value = withTiming(1, {
-          duration: 520 + value * 90,
-          easing: Easing.out(Easing.quad),
+        // A win is paid out of the stock behind that hole: one coin leaves the
+        // bottom of a tube at a time, and the stack steps down as it goes.
+        const shown = Math.min(PAY_POOL, value);
+        setPayout({ x: tubeX(dropTube), y: COL_BOTTOM, n: shown });
+        const total = PAY_STEP_MS * (shown - 1) + PAY_FLY_MS;
+        payMs.value = 0;
+        payMs.value = withTiming(total, {
+          duration: total,
+          easing: Easing.linear,
         });
+        payTimers.current.forEach(clearTimeout);
+        payTimers.current = [];
+        for (let i = 0; i < value; i++) {
+          payTimers.current.push(
+            setTimeout(
+              () => setTubes((prev) => takeOne(prev, dropTube)),
+              i * PAY_STEP_MS,
+            ),
+          );
+        }
         say(value === 10 ? 'JACKPOT · 10 KRONER' : `${value} KRONER`);
         playPayout();
         Haptics.notificationAsync(
@@ -228,7 +235,7 @@ export function Game() {
         }
       });
     },
-    [cy, coinShown, payP, say],
+    [cy, coinShown, payMs, say],
   );
 
   const onResolved = useCallback(
@@ -271,7 +278,7 @@ export function Game() {
     setBank((b) => b - 1);
     setPhase('loaded');
     cx.value = LAUNCH_X;
-    cy.value = CHUTE_BOTTOM - 4;
+    cy.value = LAUNCH_Y;
     spin.value = 0;
     coinShown.value = 1;
     playInsert();
@@ -423,7 +430,7 @@ export function Game() {
                 height: coinPx * 0.8,
               }}
             >
-              <Coin size={coinPx * 0.8} detail={false} face={i % 3 === 0 ? 'king' : 'crown'} />
+              <Coin size={coinPx * 0.8} detail={false} face={i % 3 === 0 ? 'obverse' : 'reverse'} />
             </View>
           ))}
           {tray > 0 && (
@@ -438,13 +445,13 @@ export function Game() {
           <Animated.View
             style={[{ position: 'absolute', width: coinPx, height: coinPx }, coinStyle]}
           >
-            <Coin size={coinPx} face="crown" />
+            <Coin size={coinPx} face="reverse" />
           </Animated.View>
           {Array.from({ length: payout.n }, (_, i) => (
             <PayoutCoin
               key={i}
               index={i}
-              progress={payP}
+              elapsed={payMs}
               from={payout}
               scale={scale}
               size={coinPx}
@@ -516,13 +523,13 @@ export function Game() {
 /** One coin of a payout, hopping from the tube bank into the bowl. */
 function PayoutCoin({
   index,
-  progress,
+  elapsed,
   from,
   scale,
   size,
 }: {
   index: number;
-  progress: SharedValue<number>;
+  elapsed: SharedValue<number>;
   from: { x: number; y: number };
   scale: number;
   size: number;
@@ -530,16 +537,17 @@ function PayoutCoin({
   const targetX = TRAY_X + 6 + ((index * 31) % (TRAY_W - 18));
   const targetY = TRAY_Y + 4 + ((index * 13) % 7);
   const style = useAnimatedStyle(() => {
-    const raw = (progress.value - index * 0.07) / 0.55;
+    const raw = (elapsed.value - index * PAY_STEP_MS) / PAY_FLY_MS;
     const t = raw < 0 ? 0 : raw > 1 ? 1 : raw;
     const x = from.x + (targetX - from.x) * t;
-    // Slight hop so the coins arc out of the machine rather than slide.
-    const y = from.y + (targetY - from.y) * t - Math.sin(t * Math.PI) * 5;
+    // Falls out of the tube, then drops into the bowl.
+    const y = from.y + (targetY - from.y) * (t * t * 0.7 + t * 0.3);
     return {
-      opacity: t > 0 && progress.value < 1.001 ? 1 : 0,
+      opacity: raw > 0 && t < 1 ? 1 : 0,
       transform: [
         { translateX: (FRAME + x - COIN_R) * scale },
         { translateY: (FRAME + y - COIN_R) * scale },
+        { rotate: `${t * 220 * (index % 2 ? 1 : -1)}deg` },
       ],
     };
   });

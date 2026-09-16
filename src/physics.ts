@@ -46,6 +46,8 @@ const MATERIAL: Record<Surface, { friction: number; restitution: number }> = {
   arch: { friction: 0.2, restitution: 0.2 },
   wall: { friction: 0.25, restitution: 0.3 },
   rail: { friction: 0.35, restitution: 0.45 },
+  // The launch channel and its turn: polished metal, so the coin keeps speed.
+  guide: { friction: 0.08, restitution: 0.25 },
 };
 
 const COIN_FRICTION = 0.32;
