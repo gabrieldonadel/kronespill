@@ -394,7 +394,15 @@ export function Game() {
           ]}
         >
           <Playfield scale={scale} />
-          <View style={StyleSheet.absoluteFill}>
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: u(GLASS_W),
+              height: u(GLASS_H),
+            }}
+          >
             <TubeBank counts={tubes} scale={scale} />
           </View>
         </View>
@@ -430,7 +438,7 @@ export function Game() {
                 height: coinPx * 0.8,
               }}
             >
-              <Coin size={coinPx * 0.8} detail={false} face={i % 3 === 0 ? 'obverse' : 'reverse'} />
+              <Coin size={coinPx * 0.8} face={i % 3 === 0 ? 'obverse' : 'reverse'} />
             </View>
           ))}
           {tray > 0 && (
@@ -441,9 +449,21 @@ export function Game() {
         </Pressable>
 
         {/* Coins in flight, above the glass. */}
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: u(MW),
+            height: u(MH),
+            pointerEvents: 'none',
+          }}
+        >
           <Animated.View
-            style={[{ position: 'absolute', width: coinPx, height: coinPx }, coinStyle]}
+            style={[
+              { position: 'absolute', width: coinPx, height: coinPx },
+              coinStyle,
+            ]}
           >
             <Coin size={coinPx} face="reverse" />
           </Animated.View>
@@ -553,7 +573,7 @@ function PayoutCoin({
   });
   return (
     <Animated.View style={[{ position: 'absolute', width: size, height: size }, style]}>
-      <Coin size={size} detail={false} />
+      <Coin size={size} />
     </Animated.View>
   );
 }

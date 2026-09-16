@@ -31,7 +31,10 @@ the stack steps down as they fall into the bowl. A coin that misses rolls off
 the rail and the machine keeps it.
 
 The coin is the real thing — both faces of a 1983 Olav V krone, photographed and
-masked to the rim. A machine of this vintage takes exactly that coin; the 1997
+masked to the rim. A loaded machine shows a couple of hundred coins at once, so
+the art is decoded **once per face** with expo-image's `useImage` and every coin
+draws from that same reference; each tube is memoised on its own count, so
+paying a win re-renders one tube rather than the whole bank. A machine of this vintage takes exactly that coin; the 1997
 replacement with its centre hole is what put these machines out of service.
 
 ## How it is put together

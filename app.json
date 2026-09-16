@@ -24,7 +24,8 @@
     },
     "plugins": [
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      "expo-image"
     ]
   }
 }

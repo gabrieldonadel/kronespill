@@ -8,6 +8,7 @@
     "expo-asset": "~57.0.17",
     "expo-audio": "~57.0.5",
     "expo-haptics": "~57.0.3",
+    "expo-image": "~57.0.5",
     "expo-status-bar": "~57.0.1",
     "planck": "^1.5.0",
     "react": "19.2.3",
