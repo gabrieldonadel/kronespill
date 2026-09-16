@@ -1,20 +1,30 @@
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { KiteProvider } from 'tuft-kite';
+import { Game } from './src/Game';
+
+const KITE_URL = process.env.EXPO_PUBLIC_KITE_URL;
+const KITE_TOKEN = process.env.EXPO_PUBLIC_KITE_TOKEN;
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+  const app = (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <Game />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
-}
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+  // Remote control for development only, and only when configured locally.
+  if (__DEV__ && KITE_URL && KITE_TOKEN) {
+    return (
+      <KiteProvider url={KITE_URL} token={KITE_TOKEN}>
+        {app}
+      </KiteProvider>
+    );
+  }
+  return app;
+}
