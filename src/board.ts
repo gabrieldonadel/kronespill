@@ -16,10 +16,14 @@ import {
   CHANNEL_INNER_X,
   CHANNEL_MOUTH_Y,
   CHANNEL_TURN_Y,
-  DRAIN_MARGIN,
   POCKET_DEPTH,
   RAIL_X_L,
   RAIL_X_R,
+  RAMP_APEX_Y,
+  RAMP_OUT_Y,
+  RAMP_X_L,
+  RAMP_X_R,
+  CENTRE_GAP,
   TUNE,
   TURN_CX,
   TURN_CY,
@@ -31,7 +35,7 @@ import {
   type Tune,
 } from './engine';
 
-export type Surface = 'pin' | 'bumper' | 'arch' | 'wall' | 'rail' | 'guide';
+export type Surface = 'pin' | 'bumper' | 'arch' | 'wall' | 'rail' | 'guide' | 'ramp';
 
 export type BoardEdge = {
   x1: number;
@@ -97,12 +101,16 @@ export function boardEdges(tune: Tune = TUNE): BoardEdge[] {
     surface: Surface,
   ) => edges.push({ x1, y1, x2, y2, surface });
   const ry = (x: number) => railY(x, tune.railDrop);
-  const bottom = ry(WALL_L) + POCKET_DEPTH + DRAIN_MARGIN + 2;
 
-  // Side rails, running past the pocket row into the drop channels.
-  add(WALL_L, 4, WALL_L, bottom, 'wall');
+  // Side rails. They stop where the ramp meets them: there is no way out of
+  // the field at the sides, only down into the tubes or the middle chute.
+  add(WALL_L, 4, WALL_L, RAMP_OUT_Y, 'wall');
   // Above the channel head the outer boundary is the guide's own lip.
-  add(WALL_R, CHANNEL_TURN_Y, WALL_R, bottom, 'wall');
+  add(WALL_R, CHANNEL_TURN_Y, WALL_R, RAMP_OUT_Y, 'wall');
+
+  // The V under the holes, closing the field and running coins inward.
+  add(RAMP_X_L, RAMP_OUT_Y, 50 - CENTRE_GAP, RAMP_APEX_Y, 'ramp');
+  add(50 + CENTRE_GAP, RAMP_APEX_Y, RAMP_X_R, RAMP_OUT_Y, 'ramp');
 
   // Launch channel down the right edge. The outer side is the board's own
   // rail; this is the inner wall and the quarter turn at its head.

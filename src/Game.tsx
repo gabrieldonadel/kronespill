@@ -24,6 +24,8 @@ import {
   COL_BOTTOM,
   COL_COUNT,
   COL_MAX,
+  RESULT_CENTRE,
+  resultColumn,
   GLASS_H,
   GLASS_W,
   LAUNCH_X,
@@ -43,6 +45,7 @@ import {
   type Board,
 } from './physics';
 import { keepPlayed, takeOne } from './payout';
+import { STACK_PITCH } from './components/TubeBank';
 import {
   initSound,
   playImpact,
@@ -149,6 +152,12 @@ export function Game() {
 
   if (boardRef.current === null) boardRef.current = createBoard(TUNE);
 
+  // The solver needs the stock levels: a full tube cannot take another coin,
+  // and when none can, the coin goes down the middle.
+  useEffect(() => {
+    if (boardRef.current) boardRef.current.columns = tubes;
+  }, [tubes]);
+
   useEffect(() => {
     initSound();
     return () => {
@@ -176,19 +185,39 @@ export function Game() {
   const tubeFor = (x: number) =>
     Math.max(0, Math.min(COL_COUNT - 1, Math.floor((x - RAIL_X_L) / TUBE_PITCH)));
 
-  /** Pays out of the two tubes behind a pocket, and keeps the coin played. */
+  /** The coin becomes part of the stack at the moment the sprite arrives. */
+  const landInTube = useCallback((k: number) => {
+    setTubes((prev) => {
+      const next = [...prev];
+      const i = Math.max(0, Math.min(COL_COUNT - 1, k));
+      next[i] = Math.min(COL_MAX, next[i] + 1);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Resolves a round. A coin either drops into a winning hole, runs down the
+   * middle when every tube is full, or joins one of the stacks — it is never
+   * simply lost.
+   */
   const settle = useCallback(
     (result: number, x: number) => {
-      const winning = result > 0;
-      const value = winning ? SLOT_VALUES[result - 1] : 0;
-      const dropTube = winning ? tubeFor(SLOT_XS[result - 1]) : tubeFor(x);
-
-      // The coin played is always kept by the machine.
-      setTubes((prev) => keepPlayed(prev, dropTube));
+      const holeWin = result > 0;
+      const centreWin = result === RESULT_CENTRE;
+      const winning = holeWin || centreWin;
+      const value = holeWin ? SLOT_VALUES[result - 1] : centreWin ? 10 : 0;
+      const landedTube = winning ? -1 : resultColumn(result);
+      const dropTube = holeWin ? tubeFor(SLOT_XS[result - 1]) : Math.max(0, landedTube);
 
       if (AUTOPLAY) {
         console.log(
-          `[autoplay] ${winning ? `WIN ${value} kr pocket ${result}` : `lost x=${x.toFixed(1)}`}`,
+          `[autoplay] ${
+            holeWin
+              ? `WIN ${value} kr hole ${result}`
+              : centreWin
+                ? 'WIN 10 kr down the middle'
+                : `kept by tube ${landedTube}`
+          }`,
         );
       }
 
@@ -216,7 +245,13 @@ export function Game() {
             ),
           );
         }
-        say(value === 10 ? 'JACKPOT · 10 KRONER' : `${value} KRONER`);
+        say(
+          centreWin
+            ? 'ALLE RØR FULLE · 10 KRONER'
+            : value === 10
+              ? 'JACKPOT · 10 KRONER'
+              : `${value} KRONER`,
+        );
         playPayout();
         Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
@@ -226,16 +261,29 @@ export function Game() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }
 
-      // Drop the played coin out of sight into the tube bank.
-      cy.value = withTiming(COL_BOTTOM - 6, { duration: 260 }, (done) => {
+      if (holeWin) {
+        // The coin played is kept by the machine.
+        setTubes((prev) => keepPlayed(prev, dropTube));
+      }
+
+      // Walk the coin to where it actually ended up: into the winning hole's
+      // tube, or onto the top of the stack it joined.
+      const restTube = winning ? dropTube : landedTube;
+      const standing = tubes[Math.max(0, restTube)] ?? 0;
+      const restY = winning
+        ? COL_BOTTOM - 6
+        : COL_BOTTOM - COIN_R - 0.3 - standing * STACK_PITCH;
+      cx.value = withTiming(tubeX(Math.max(0, restTube)), { duration: 240 });
+      cy.value = withTiming(restY, { duration: 260 }, (done) => {
         'worklet';
         if (done) {
           coinShown.value = 0;
+          if (!winning) runOnJS(landInTube)(restTube);
           runOnJS(setPhase)('idle');
         }
       });
     },
-    [cy, coinShown, payMs, say],
+    [cx, cy, coinShown, payMs, say, tubes, landInTube],
   );
 
   const onResolved = useCallback(

@@ -19,11 +19,8 @@ import {
   TURN_CY,
   TURN_R_IN,
   TURN_R_OUT,
-  CHEV_APEX_Y,
-  CHEV_HALF_GAP,
-  CHEV_OUT_X_L,
-  CHEV_OUT_X_R,
-  CHEV_OUT_Y,
+  RAMP_APEX_Y,
+  RAMP_OUT_Y,
   PAYOUT_CHUTE_BOTTOM,
   PAYOUT_CHUTE_X,
   COL_BOTTOM,
@@ -209,17 +206,24 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
         );
       })}
 
-      {/* Chevron rail that sheds missed coins outward. */}
+      {/* The rails under the holes form a flattened diamond. The lower V is
+          what the coin actually runs on, so it is drawn from the collision
+          geometry; the upper one is the moulding above it. */}
       <Path
-        d={`M${CHEV_OUT_X_L} ${CHEV_OUT_Y} L${PAYOUT_CHUTE_X - CHEV_HALF_GAP} ${CHEV_APEX_Y}`}
+        d={`M6 ${RAMP_OUT_Y} L50 ${RAMP_OUT_Y - 4.5} L94 ${RAMP_OUT_Y}`}
+        fill="none"
         stroke={C.ink}
         strokeWidth={1.7}
-        strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <Path
-        d={`M${PAYOUT_CHUTE_X + CHEV_HALF_GAP} ${CHEV_APEX_Y} L${CHEV_OUT_X_R} ${CHEV_OUT_Y}`}
+        d={edges
+          .filter((e) => e.surface === 'ramp')
+          .map((e) => `M${e.x1} ${e.y1} L${e.x2} ${e.y2}`)
+          .join(' ')}
+        fill="none"
         stroke={C.ink}
-        strokeWidth={1.7}
+        strokeWidth={2.2}
         strokeLinecap="round"
       />
 
@@ -253,33 +257,33 @@ export const Playfield = React.memo(function Playfield({ scale }: { scale: numbe
       {/* Launch chute: striped cover with the starred crown at its head. */}
       <Rect
         x={PAYOUT_CHUTE_X - CHUTE_HALF}
-        y={CHEV_APEX_Y + 3}
+        y={RAMP_APEX_Y + 2.5}
         width={CHUTE_HALF * 2}
-        height={PAYOUT_CHUTE_BOTTOM - CHEV_APEX_Y - 3}
+        height={PAYOUT_CHUTE_BOTTOM - RAMP_APEX_Y - 2.5}
         fill="url(#chute)"
       />
       {Array.from({ length: 7 }, (_, i) => (
         <Rect
           key={`stripe${i}`}
           x={PAYOUT_CHUTE_X - CHUTE_HALF + 0.7 + i * 0.85}
-          y={CHEV_APEX_Y + 4}
+          y={RAMP_APEX_Y + 3.5}
           width={0.34}
-          height={PAYOUT_CHUTE_BOTTOM - CHEV_APEX_Y - 5}
+          height={PAYOUT_CHUTE_BOTTOM - RAMP_APEX_Y - 4.5}
           fill={C.ink}
         />
       ))}
       <G>
         <Path
-          d={`M${PAYOUT_CHUTE_X - 3.6} ${CHEV_APEX_Y - 3.4} L${PAYOUT_CHUTE_X - 3.6} ${CHEV_APEX_Y - 5.4} L${PAYOUT_CHUTE_X - 1.8} ${CHEV_APEX_Y - 4.2} L${PAYOUT_CHUTE_X - 1.8} ${CHEV_APEX_Y - 6.2} L${PAYOUT_CHUTE_X} ${CHEV_APEX_Y - 4.8} L${PAYOUT_CHUTE_X + 1.8} ${CHEV_APEX_Y - 6.2} L${PAYOUT_CHUTE_X + 1.8} ${CHEV_APEX_Y - 4.2} L${PAYOUT_CHUTE_X + 3.6} ${CHEV_APEX_Y - 5.4} L${PAYOUT_CHUTE_X + 3.6} ${CHEV_APEX_Y - 3.4} Z`}
+          d={`M${PAYOUT_CHUTE_X - 3.6} ${RAMP_APEX_Y - 3.4} L${PAYOUT_CHUTE_X - 3.6} ${RAMP_APEX_Y - 5.4} L${PAYOUT_CHUTE_X - 1.8} ${RAMP_APEX_Y - 4.2} L${PAYOUT_CHUTE_X - 1.8} ${RAMP_APEX_Y - 6.2} L${PAYOUT_CHUTE_X} ${RAMP_APEX_Y - 4.8} L${PAYOUT_CHUTE_X + 1.8} ${RAMP_APEX_Y - 6.2} L${PAYOUT_CHUTE_X + 1.8} ${RAMP_APEX_Y - 4.2} L${PAYOUT_CHUTE_X + 3.6} ${RAMP_APEX_Y - 5.4} L${PAYOUT_CHUTE_X + 3.6} ${RAMP_APEX_Y - 3.4} Z`}
           fill={C.crownYellow}
         />
         <Path
-          d={`M${PAYOUT_CHUTE_X - 3.6} ${CHEV_APEX_Y - 3.4} H${PAYOUT_CHUTE_X + 3.6} V${CHEV_APEX_Y + 1.4} L${PAYOUT_CHUTE_X} ${CHEV_APEX_Y + 4.2} L${PAYOUT_CHUTE_X - 3.6} ${CHEV_APEX_Y + 1.4} Z`}
+          d={`M${PAYOUT_CHUTE_X - 3.6} ${RAMP_APEX_Y - 3.4} H${PAYOUT_CHUTE_X + 3.6} V${RAMP_APEX_Y + 1.4} L${PAYOUT_CHUTE_X} ${RAMP_APEX_Y + 4.2} L${PAYOUT_CHUTE_X - 3.6} ${RAMP_APEX_Y + 1.4} Z`}
           fill={C.crownYellow}
         />
         <SvgText
           x={PAYOUT_CHUTE_X}
-          y={CHEV_APEX_Y + 0.9}
+          y={RAMP_APEX_Y + 0.9}
           textAnchor="middle"
           fontSize="3"
           fill={C.ink}

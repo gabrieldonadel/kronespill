@@ -1,7 +1,7 @@
 // Fine power scan: hunts narrow strengths that reliably beat the machine.
 // Run: node scripts/resonance.mjs <speedMin> <speedMax> [plays] [steps]
-import { TUNE, SLOT_VALUES } from '../src/engine.ts';
-import { createBoard, launchBoard, stepBoard, RESULT_FLYING, RESULT_LOST } from '../src/physics.ts';
+import { TUNE, SLOT_VALUES, RESULT_CENTRE } from '../src/engine.ts';
+import { createBoard, launchBoard, stepBoard, RESULT_FLYING } from '../src/physics.ts';
 
 const speedMin = Number(process.argv[2] ?? TUNE.speedMin);
 const speedMax = Number(process.argv[3] ?? TUNE.speedMax);
@@ -17,12 +17,13 @@ for (let i = 0; i < STEPS; i++) {
   let paid = 0, jack = 0, hits = 0;
   for (let n = 0; n < N; n++) {
     launchBoard(board, power);
-    let r = RESULT_LOST;
+    let r = 0;
     for (let f = 0; f < 2400; f++) {
       r = stepBoard(board, DT);
       if (r !== RESULT_FLYING) break;
     }
     if (r > 0) { paid += SLOT_VALUES[r - 1]; hits++; if (r === 5) jack++; }
+    else if (r === RESULT_CENTRE) { paid += 10; hits++; jack++; }
   }
   rows.push({ power, payback: paid / N, hit: hits / N, jack: jack / N });
 }

@@ -13,14 +13,24 @@ import { Circle, Edge, Vec2, World, type Body, type Contact } from 'planck';
 import { boardGeometry, type Surface } from './board';
 import {
   COIN_R,
-  DRAIN_MARGIN,
   G,
   LAUNCH_X,
   LAUNCH_Y,
   MAX_FLIGHT,
   POCKET_DEPTH,
+  CENTRE_GAP,
+  COL_COUNT,
+  COL_MAX,
+  RAMP_APEX_Y,
+  RAMP_BAND,
+  RAMP_OUT_Y,
+  RAIL_X_L,
+  RAIL_X_R,
+  RAMP_X_L,
+  RAMP_X_R,
+  RESULT_CENTRE,
   RESULT_FLYING,
-  RESULT_LOST,
+  columnResult,
   SLOT_XS,
   STALL_NUDGE,
   STALL_SPEED,
@@ -46,6 +56,8 @@ const MATERIAL: Record<Surface, { friction: number; restitution: number }> = {
   arch: { friction: 0.2, restitution: 0.2 },
   wall: { friction: 0.25, restitution: 0.3 },
   rail: { friction: 0.35, restitution: 0.45 },
+  // The V below the holes: shallow and slick, so coins run inward along it.
+  ramp: { friction: 0.1, restitution: 0.3 },
   // The launch channel and its turn: polished metal, so the coin keeps speed.
   guide: { friction: 0.08, restitution: 0.25 },
 };
@@ -57,6 +69,11 @@ export type Board = {
   world: World;
   coin: Body;
   tune: Tune;
+  /**
+   * How many coins stand in each tube. A full tube cannot take another, so the
+   * coin runs further in; when none can take it, it goes down the middle.
+   */
+  columns: number[];
   /** Seconds since launch. */
   t: number;
   stall: number;
@@ -119,6 +136,7 @@ export function createBoard(tune: Tune = TUNE): Board {
     world,
     coin,
     tune,
+    columns: new Array(COL_COUNT).fill(0),
     t: 0,
     stall: 0,
     loudest: 0,
@@ -166,11 +184,41 @@ export function coinState(board: Board) {
   };
 }
 
+/** Height of the inward-running ramp at a given x. */
+export function rampY(x: number): number {
+  const half = 50 - CENTRE_GAP - RAMP_X_L;
+  const t = Math.min(1, Math.max(0, (Math.abs(x - 50) - CENTRE_GAP) / half));
+  return RAMP_APEX_Y - (RAMP_APEX_Y - RAMP_OUT_Y) * t;
+}
+
+/** Which tube sits under a given x, or -1 outside the bank. */
+export function columnAt(x: number, pitch: number, left: number): number {
+  const k = Math.floor((x - left) / pitch);
+  return k >= 0 && k < COL_COUNT ? k : -1;
+}
+
+/**
+ * Where a coin ends up once it reaches the bottom of the V: the nearest tube
+ * with room, searching outward, or the middle chute if the bank is full.
+ */
+function settleLow(board: Board, x: number): number {
+  const pitch = (RAIL_X_R - RAIL_X_L) / COL_COUNT;
+  const from = Math.max(0, Math.min(COL_COUNT - 1, columnAt(x, pitch, RAIL_X_L)));
+  for (let d = 0; d < COL_COUNT; d++) {
+    for (const k of [from - d, from + d]) {
+      if (k >= 0 && k < COL_COUNT && board.columns[k] < COL_MAX) {
+        return columnResult(k);
+      }
+    }
+  }
+  return RESULT_CENTRE;
+}
+
 /** Fixed solver tick. Small enough that a 33 m/s coin moves under 20 cm. */
 const FIXED_DT = 1 / 180;
 
 /**
- * Advances the board. Returns RESULT_FLYING, RESULT_LOST, or pocket index + 1.
+ * Advances the board. See the result codes in engine.ts.
  */
 export function stepBoard(board: Board, dt: number): number {
   const total = Math.max(FIXED_DT, Math.min(dt, 1 / 20));
@@ -220,8 +268,20 @@ export function stepBoard(board: Board, dt: number): number {
       }
     }
 
-    if (y > floor + POCKET_DEPTH + DRAIN_MARGIN) return RESULT_LOST;
-    if (board.t > MAX_FLIGHT) return RESULT_LOST;
+    // Running along the V: drop into the first tube with room.
+    const ramp = rampY(x);
+    if (y > ramp - COIN_R - RAMP_BAND && vy > -5) {
+      const pitch = (RAIL_X_R - RAIL_X_L) / COL_COUNT;
+      const k = columnAt(x, pitch, RAIL_X_L);
+      if (k >= 0 && board.columns[k] < COL_MAX) return columnResult(k);
+    }
+    // At the bottom of the V: the middle chute only takes the coin when every
+    // tube is full and there is nowhere else for it to go.
+    if (y > RAMP_APEX_Y + COIN_R) return settleLow(board, x);
+    if (board.t > MAX_FLIGHT) {
+      // Nothing should take this long. The machine keeps it.
+      return settleLow(board, x);
+    }
   }
 
   return RESULT_FLYING;
@@ -235,4 +295,4 @@ export function takeImpact(board: Board): { strength: number; on: Surface | null
   return out;
 }
 
-export { RESULT_FLYING, RESULT_LOST };
+export { RESULT_CENTRE, RESULT_FLYING };

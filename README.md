@@ -27,8 +27,14 @@ the channel — a wasted krone, exactly as on the machine.
 
 A coin that drops into a crown hole pays what the shield says, **out of the tube
 stock behind that hole**: coins leave the bottom of the tube one at a time and
-the stack steps down as they fall into the bowl. A coin that misses rolls off
-the rail and the machine keeps it.
+the stack steps down as they fall into the bowl.
+
+**A coin is never simply lost.** One that misses every hole runs off the end of
+the hole rail onto the V below, travels inward along it, and drops into the
+outermost tube that still has room — which is why the outer stacks stand highest
+on the real cabinet. If every tube is full there is nowhere left to go, and the
+coin runs on down the middle chute, which pays 10. So a round always ends
+somewhere you can see: a payout, or a coin added to a stack.
 
 The coin is the real thing — both faces of a 1983 Olav V krone, photographed and
 masked to the rim. A loaded machine shows a couple of hundred coins at once, so
@@ -88,13 +94,14 @@ Current board, over 4 000 simulated flicks:
 
 | | |
 | --- | --- |
-| hit rate | 29.9% |
-| payback | 0.852 kr per krone played |
-| house edge | 14.8% |
-| flight | 2.35 s mean, 4.28 s worst |
+| hit rate | 29.7% |
+| kept by the tubes | 70.3% |
+| payback | 0.832 kr per krone played |
+| house edge | 16.8% |
+| flight | 2.79 s mean, 5.73 s worst |
 | jammed coins | none |
-| jackpot | 1.4% of flicks |
-| spread | all nine holes between 2.9% and 4.3% |
+| down the middle | 0.04% of flicks, and only with the bank full |
+| spread | all nine holes served |
 
 No flick strength beats the machine: payback stays between 0.6 and 1.1 across
 the whole power range. That needs the flick jitter in `TUNE` — without it the
@@ -124,8 +131,8 @@ until a coin is stuck behind glass:
   the coin had real angular dynamics it simply rolled into holes, because in two
   dimensions a hole in the floor is a hole in the floor — the missing dimension
   had to be modelled, not approximated.
-- The chevron rail and the tube bank are drawn, not simulated. By the time a
-  coin reaches them the round is already decided.
+- The tube stacks are drawn, not simulated. Once a coin reaches the tube bank
+  its round is decided; it is added to that stack's count.
 - A coin balanced on a pin gets nudged, the way a real cabinet is never quite
   still. After too long it counts as lost rather than hanging the game.
 

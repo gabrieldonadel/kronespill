@@ -10,9 +10,21 @@
  * balanced and checked offline rather than by hand on a device.
  */
 
+/**
+ * How a round can end.
+ *
+ *   > 0            a winning hole, index + 1
+ *   RESULT_FLYING  still in play
+ *   RESULT_CENTRE  down the middle chute, which pays the jackpot
+ *   <= -2          a coin tube, see columnResult / resultColumn
+ *
+ * A coin is never simply lost: it either pays out, or it joins one of the
+ * stacks, which is where the machine's money comes from.
+ */
 export const RESULT_FLYING = 0;
-export const RESULT_LOST = -1;
-// Any value >= 1 is a pocket index + 1.
+export const RESULT_CENTRE = -1;
+export const columnResult = (k: number) => -2 - k;
+export const resultColumn = (r: number) => (r <= -2 ? -(r + 2) : -1);
 
 export const COIN_R = 2.2;
 /** One board unit in millimetres: a 21 mm krone is 4.4 units across. */
@@ -52,18 +64,28 @@ export const SLOT_XS = [10, 20, 30, 40, 50, 60, 70, 80, 90];
 export const SLOT_Y = 44;
 export const POCKET_DEPTH = 4.5;
 export const CAPTURE_DEPTH = 2.5;
-export const DRAIN_MARGIN = 1.5;
+
+/**
+ * Below the holes the field closes into a shallow V. A coin that misses every
+ * hole lands on it and runs inward, dropping into the outermost tube that still
+ * has room — which is why the outer stacks stand highest on the real cabinet.
+ * If every tube is full there is nowhere left to go and the coin runs on down
+ * the middle chute, which pays the jackpot.
+ */
+/** Outer ends sit low enough to clear the end of the hole rail. */
+export const RAMP_OUT_Y = 52;
+export const RAMP_APEX_Y = 57.5;
+/** The V meets the side rails, so there is no corner to wedge a coin in. */
+export const RAMP_X_L = 2;
+export const RAMP_X_R = 98;
+/** Half width of the opening at the bottom of the V. */
+export const CENTRE_GAP = 3.4;
+/** A coin has to be running along the ramp to drop into a tube. */
+export const RAMP_BAND = 2.6;
 
 /** The rail carrying the pocket row stops here; past it lie the side channels. */
 export const RAIL_X_L = 7.6;
 export const RAIL_X_R = 92.4;
-
-/** Black chevron rail and tube bank. Drawn only: see DRAIN below. */
-export const CHEV_APEX_Y = 50.5;
-export const CHEV_OUT_Y = 57;
-export const CHEV_HALF_GAP = 3.6;
-export const CHEV_OUT_X_L = 8.5;
-export const CHEV_OUT_X_R = 91.5;
 
 export const COL_TOP = 58;
 export const COL_BOTTOM = 106;

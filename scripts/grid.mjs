@@ -1,6 +1,6 @@
 // Board balance search. Run: node --import ./scripts/register.mjs scripts/grid.mjs [plays]
-import { SLOT_VALUES, TUNE } from '../src/engine.ts';
-import { createBoard, launchBoard, stepBoard, RESULT_FLYING, RESULT_LOST } from '../src/physics.ts';
+import { SLOT_VALUES, TUNE, COL_COUNT, COL_MAX, RESULT_CENTRE } from '../src/engine.ts';
+import { createBoard, launchBoard, stepBoard, RESULT_FLYING } from '../src/physics.ts';
 
 const N = Number(process.argv[2] ?? 600);
 const DT = 1 / 60;
@@ -8,11 +8,14 @@ const DT = 1 / 60;
 export function evaluate(over, n = N) {
   const tune = { ...TUNE, ...over };
   const board = createBoard(tune);
+  board.columns = Array.from({ length: COL_COUNT }, (_, i) =>
+    Math.min(COL_MAX, Math.round(6 + Math.abs(i - (COL_COUNT - 1) / 2) * 0.72)),
+  );
   const hits = new Array(9).fill(0);
   let paid = 0, won = 0, time = 0, timeouts = 0;
   for (let i = 0; i < n; i++) {
     launchBoard(board, Math.random());
-    let r = RESULT_LOST;
+    let r = 0;
     for (let s = 0; s < 2400; s++) {
       r = stepBoard(board, DT);
       if (r !== RESULT_FLYING) break;
@@ -20,6 +23,7 @@ export function evaluate(over, n = N) {
     time += board.t;
     if (board.t > 13) timeouts++;
     if (r > 0) { hits[r - 1]++; won++; paid += SLOT_VALUES[r - 1]; }
+    else if (r === RESULT_CENTRE) { won++; paid += 10; }
   }
   const left = hits.slice(0, 4).reduce((a, b) => a + b, 0);
   const right = hits.slice(5).reduce((a, b) => a + b, 0);
