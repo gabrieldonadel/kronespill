@@ -1,5 +1,10 @@
 {
   "name": "Kronespill",
+  "id": "dev.donadel.kronespill",
+  "app": {
+    "id": "dev.donadel.kronespill",
+    "name": "Kronespill"
+  },
   "game": {
     "assets": true,
     "audio": true
