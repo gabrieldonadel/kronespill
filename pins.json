@@ -1,0 +1,10 @@
+{
+  "game": "kronespill",
+  "ticks": {},
+  "saves": {},
+  "hosts": [],
+  "generated": "bun $EXACT2/game/prove.mjs .",
+  "at": "unverified",
+  "help": "Run bun $EXACT2/game/prove.mjs . to establish the first Linux/web baseline."
+}
+

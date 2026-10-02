@@ -1,0 +1,57 @@
+shape Hud
+  phase: string
+  bank: number
+  tray: number
+  played: number
+  won: number
+  best: number
+  power: number
+  stock: number
+  banner: string
+
+component Kronespill
+  resource hud = exactSurface("world") as shape Hud
+  view
+    main width="100%" height="100%" min-height=0 background-color="#111820" color="#f3ead4" display="flex" flex-direction="column" align-items="center"
+      column width="100%" max-width=620 height="100%" min-height=0 padding=12 box-sizing="border-box" gap=10
+        column flex-shrink=0 align-items="center" gap=2
+          text "KRONESPILL" font-size=22 font-weight=900 letter-spacing=5 color="#e7b64a"
+          text "knipsekasse · 1 krone" font-size=11 letter-spacing=2 color="#9aa7ad"
+        canvas surface=world() testId="world" width="100%" flex=1 min-height=0 border-width=3 border-color="#8b9697" border-radius=8 position="relative" overflow="hidden" background-color="#0e2228"
+          row position="absolute" top=10 left=10 right=10 justify-content="space-between" align-items="flex-start"
+            column padding=8 gap=2 border-radius=6 background-color="#0c1216d9"
+              text `SPILT ${hud.played}` font-size=11 letter-spacing=1
+              text `VUNNET ${hud.won} kr` font-size=11 letter-spacing=1 color="#e7b64a"
+            column padding=8 gap=2 border-radius=6 background-color="#0c1216d9" align-items="flex-end"
+              text `BESTE ${hud.best} kr` font-size=11 letter-spacing=1
+              text `MYNTER ${hud.stock}` font-size=11 letter-spacing=1
+          when hud.banner != ""
+            text hud.banner aria-live="polite" testId="banner" position="absolute" top=64 left="15%" width="70%" padding=10 border-width=1 border-color="#e7b64a" border-radius=6 background-color="#0a0808e8" color="#e7b64a" text-align="center" font-weight=900 letter-spacing=2
+          row position="absolute" left="7%" right="7%" top="37%" justify-content="space-between" color="#e7b64a" font-size=12 font-weight=900
+            text "3"
+            text "2"
+            text "3"
+            text "2"
+            text "10"
+            text "3"
+            text "2"
+            text "3"
+            text "2"
+          text "BRUK KUN FEILFRIE KRONESTYKKER" position="absolute" right=5 top="28%" width=18 font-size=8 letter-spacing=1 color="#1a1a18" background-color="#c6cac6" padding=4 text-align="center"
+          when hud.tray > 0
+            button action="collect" aria-label=`Collect ${hud.tray} kroner` testId="collect" position="absolute" left="24%" right="24%" bottom=102 padding=10 border-radius=20 background-color="#1c1a18" color="#e7b64a"
+              text `${hud.tray} kr · TA GEVINSTEN` text-align="center" font-weight=800 letter-spacing=1
+          row position="absolute" left=10 right=10 bottom=10 gap=10 align-items="stretch"
+            button action="insert" disabled=(hud.phase != "idle" or hud.bank == 0) testId="insert" aria-label="Legg på mynt" flex=1 min-height=78 padding=12 border-radius=7 background-color=(hud.phase == "idle" and hud.bank > 0 ? "#c4c9c7" : "#596063") color="#15191a"
+              column align-items="center" gap=4
+                text "LEGG PÅ MYNT" font-size=13 font-weight=900 letter-spacing=1
+                text `${hud.bank} kr` font-size=20 font-weight=800
+            button action="flick" disabled=(hud.phase != "loaded") testId="flick" aria-label="Hold to charge, release to flick" width=150 min-height=78 padding=10 border-radius=7 background-color=(hud.phase == "loaded" ? "#332f2b" : "#24282a") color="#f3ead4"
+              column align-items="center" gap=7
+                text (hud.phase == "loaded" ? "HOLD · SLIPP" : (hud.phase == "flying" ? "MYNTEN GÅR" : "KNIPS")) font-size=11 font-weight=900 letter-spacing=1
+                box width="100%" height=9 border-radius=5 background-color="#17191a" overflow="hidden"
+                  box width=`${hud.power}%` height="100%" background-color="#e7b64a"
+          when hud.bank == 0 and hud.tray == 0 and hud.phase == "idle"
+            button action="refill" testId="refill" aria-label="Ny rull" position="absolute" left="35%" right="35%" bottom=100 padding=8 background-color="#111820dd" color="#e7b64a"
+              text "TOM · NY RULL" font-size=12 font-weight=800 letter-spacing=1 text-align="center"
+        text "I: mynt · hold Space: styrke · C: ta gevinst" align-self="center" flex-shrink=0 font-size=10 color="#7f8b91" letter-spacing=1
